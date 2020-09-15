@@ -1,6 +1,7 @@
 #include "SeriStruct.hpp"
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
+#include <sstream>
 
 using namespace Catch::literals;
 using SeriStruct::Record;
@@ -18,6 +19,10 @@ public:
         assign_buffer(offset_e, e);
         assign_buffer(offset_f, f);
         assign_buffer(offset_g, g);
+    }
+    TestRecord(std::istream &istr)
+        : Record{istr, buffer_size}
+    {
     }
     ~TestRecord()
     {
@@ -42,6 +47,9 @@ private:
     static constexpr size_t buffer_size = offset_g + sizeof(char); // the end of the struct
 };
 
+// Used in tests below, should be expected TestRecord.buffer_size
+#define EXPECTED_BUFFER_SIZE 21UL
+
 TEST_CASE("Allocate record with primitives")
 {
     TestRecord record{5, -1, 3.0f, true, true, -1.5f, 'z'};
@@ -54,5 +62,102 @@ TEST_CASE("Allocate record with primitives")
     REQUIRE(record.f() == -1.5_a);
     REQUIRE(record.g() == 'z');
 
-    REQUIRE(record.size() == 21UL);
+    REQUIRE(record.size() == EXPECTED_BUFFER_SIZE);
+}
+
+TEST_CASE("Write record to output stream")
+{
+    TestRecord record{3, -140, 0.0f, false, true, 14999.535f, 'Z'};
+
+    std::stringstream s;
+    s << record;
+    s.sync();
+
+    // expect the buffer to include an additional 64-bits of size info
+    REQUIRE(s.tellp() == EXPECTED_BUFFER_SIZE + sizeof(uint64_t));
+
+    unsigned char EXPECTED_BYTES[] = {
+        EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
+        0x03, 0x00, 0x00, 0x00,                                         // a
+        0x74, 0xff, 0xff, 0xff,                                         // b
+        0x00, 0x00, 0x00, 0x00,                                         // c
+        0x00, 0x01, 0x00, 0x00,                                         // d, e, padding
+        0x24, 0x5e, 0x6a, 0x46,                                         // f
+        0x5a                                                            // g
+    };
+    unsigned char *p = EXPECTED_BYTES;
+    s.seekg(0);
+    auto iter = std::istream_iterator<unsigned char>{s};
+    for (; iter != std::istream_iterator<unsigned char>{}; iter++, p++)
+    {
+        REQUIRE(*iter == *p);
+    }
+}
+
+TEST_CASE("Read record from input stream")
+{
+    std::stringstream s;
+    unsigned char RECORD_BYTES[] = {
+        EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
+        0xe7, 0x03, 0x00, 0x00,                                         // a
+        0x86, 0x05, 0x00, 0x00,                                         // b
+        0x66, 0x66, 0x04, 0xc2,                                         // c
+        0x01, 0x00, 0x00, 0x00,                                         // d, e, padding
+        0x07, 0x1b, 0xb7, 0x49,                                         // f
+        0x3f,                                                           // g
+    };
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
+    {
+        s << RECORD_BYTES[i];
+    }
+    s.sync();
+    s.seekg(0);
+
+    TestRecord record{s};
+
+    REQUIRE(record.a() == 999);
+    REQUIRE(record.b() == 1414);
+    REQUIRE(record.c() == -33.1_a);
+    REQUIRE(record.d());
+    REQUIRE_FALSE(record.e());
+    REQUIRE(record.f() == 1500000.93_a);
+    REQUIRE(record.g() == '?');
+
+    REQUIRE(record.size() == EXPECTED_BUFFER_SIZE);
+}
+
+TEST_CASE("Read record with incorrect size throws exception")
+{
+    std::stringstream s;
+    unsigned char RECORD_BYTES[] = {
+        0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
+        0xe7, 0x03, 0x00, 0x00,                         // a
+        0x86, 0x05, 0x00,                               // b... ?
+    };
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
+    {
+        s << RECORD_BYTES[i];
+    }
+    s.sync();
+    s.seekg(0);
+
+    REQUIRE_THROWS_AS([&s] { TestRecord record{s}; }(), SeriStruct::invalid_size);
+}
+
+TEST_CASE("Read record with insufficent data throws exception")
+{
+    std::stringstream s;
+    unsigned char RECORD_BYTES[] = {
+        EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
+        0xe7, 0x03, 0x00, 0x00,                                         // a
+        0x86, 0x05, 0x00,                                               // b... ?
+    };
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
+    {
+        s << RECORD_BYTES[i];
+    }
+    s.sync();
+    s.seekg(0);
+
+    REQUIRE_THROWS_AS([&s] { TestRecord record{s}; }(), SeriStruct::not_enough_data);
 }

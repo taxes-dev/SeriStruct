@@ -1,9 +1,43 @@
 #pragma once
 #include <cstddef>
+#include <exception>
+#include <iostream>
 #include <type_traits>
 
 namespace SeriStruct
 {
+    class Record;
+    /**
+     * @brief Writes a SeriStruct::Record to a std::ostream.
+     * 
+     * @return std::ostream&
+     */
+    std::ostream &operator<<(std::ostream &, const Record &);
+
+    /**
+     * @brief Exception thrown when reading a stream of bytes to a SeriStruct::Record
+     * and the size in the stream doesn't match the expected size of the struct.
+     */
+    class invalid_size : public std::exception
+    {
+        const char *what() const throw()
+        {
+            return "Struct size mismatch";
+        }
+    };
+
+    /**
+     * @brief Exception thrown when reading a stream of bytes to a SeriStruct::Record
+     * and EOF is reached before enough bytes could be read.
+     */
+    class not_enough_data : public std::exception
+    {
+        const char *what() const throw()
+        {
+            return "Not enough data in stream to fill struct";
+        }
+    };
+
     /**
      * @brief An immutable set of data that can be serialized/deserialized into raw bytes. Classes
      * that derive from Record should insert data in the constructor using Record::assign_buffer"()" and
@@ -16,10 +50,25 @@ namespace SeriStruct
         /**
          * @brief Construct a new Record object
          * 
-         * @param alloc_size The size of the internal buffer, which should be the sum of the size of all
+         * @param alloc_size is the size of the internal buffer, which should be the sum of the size of all
          * the derived object's fields.
          */
         Record(const size_t alloc_size) : alloc_size{alloc_size} { alloc(); };
+
+        /**
+         * @brief Construct a new Record object from a stream of bytes
+         * 
+         * @param istr is an open stream for reading the bytes
+         * @param alloc_size is the size of the internal buffer, which should be the sum of the size of
+         * all the derived object's fields
+         * 
+         * @exception SeriStruct::invalid_size if the size header doesn't match the expected \p alloc_size
+         * @exception SeriStruct::not_enough_data if EOF is reached on \p istr before all data could be read
+         */
+        Record(std::istream &istr, const size_t alloc_size) : Record{alloc_size}
+        {
+            from_stream(istr);
+        }
 
         /**
          * @brief Destroy the Record object
@@ -38,6 +87,8 @@ namespace SeriStruct
          * @return size_t 
          */
         inline size_t size() const { return alloc_size; };
+
+        friend std::ostream &operator<<(std::ostream &, const Record &);
 
     protected:
         /**
@@ -75,6 +126,7 @@ namespace SeriStruct
         {
             buffer = new unsigned char[alloc_size];
         }
+        void from_stream(std::istream &istr);
     };
 
 } // namespace SeriStruct
