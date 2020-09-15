@@ -3,38 +3,33 @@
 #include "catch.hpp"
 
 using namespace Catch::literals;
+using SeriStruct::Record;
 
-struct TestRecord
+struct TestRecord : public Record
 {
 public:
     TestRecord(uint32_t a, int32_t b, float_t c, bool d, bool e, float_t f, char g)
+        : Record{buffer_size}
     {
-        alloc();
-        *(reinterpret_cast<uint32_t *>(buffer + offset_a)) = a;
-        *(reinterpret_cast<int32_t *>(buffer + offset_b)) = b;
-        *(reinterpret_cast<float_t *>(buffer + offset_c)) = c;
-        *(reinterpret_cast<bool *>(buffer + offset_d)) = d;
-        *(reinterpret_cast<bool *>(buffer + offset_e)) = e;
-        *(reinterpret_cast<float_t *>(buffer + offset_f)) = f;
-        *(reinterpret_cast<char *>(buffer + offset_g)) = g;
+        assign_buffer(offset_a, a);
+        assign_buffer(offset_b, b);
+        assign_buffer(offset_c, c);
+        assign_buffer(offset_d, d);
+        assign_buffer(offset_e, e);
+        assign_buffer(offset_f, f);
+        assign_buffer(offset_g, g);
     }
     ~TestRecord()
     {
-        if (buffer)
-        {
-            operator delete(buffer);
-        }
     }
 
-    uint32_t &a() const { return *(reinterpret_cast<uint32_t *>(buffer + offset_a)); }
-    int32_t &b() const { return *(reinterpret_cast<int32_t *>(buffer + offset_b)); }
-    float_t &c() const { return *(reinterpret_cast<float_t *>(buffer + offset_c)); }
-    bool &d() const { return *(reinterpret_cast<bool *>(buffer + offset_d)); }
-    bool &e() const { return *(reinterpret_cast<bool *>(buffer + offset_e)); }
-    float_t &f() const { return *(reinterpret_cast<float_t *>(buffer + offset_f)); }
-    char &g() const { return *(reinterpret_cast<char *>(buffer + offset_g)); }
-
-    size_t size() const { return buffer_size; }
+    inline uint32_t &a() const { return buffer_at<uint32_t>(offset_a); }
+    inline int32_t &b() const { return buffer_at<int32_t>(offset_b); }
+    inline float_t &c() const { return buffer_at<float_t>(offset_c); }
+    inline bool &d() const { return buffer_at<bool>(offset_d); }
+    inline bool &e() const { return buffer_at<bool>(offset_e); }
+    inline float_t &f() const { return buffer_at<float_t>(offset_f); }
+    inline char &g() const { return buffer_at<char>(offset_g); }
 
 private:
     static constexpr size_t offset_a = 0;
@@ -45,14 +40,9 @@ private:
     static constexpr size_t offset_f = offset_e + sizeof(bool) + 2; // keep following float 4-byte aligned
     static constexpr size_t offset_g = offset_f + sizeof(float_t);
     static constexpr size_t buffer_size = offset_g + sizeof(char); // the end of the struct
-    unsigned char *buffer = nullptr;
-    void alloc()
-    {
-        buffer = new unsigned char[buffer_size];
-    }
 };
 
-TEST_CASE("Allocate records with primitives")
+TEST_CASE("Allocate record with primitives")
 {
     TestRecord record{5, -1, 3.0f, true, true, -1.5f, 'z'};
 
