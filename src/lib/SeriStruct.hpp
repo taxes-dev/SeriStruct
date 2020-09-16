@@ -51,7 +51,7 @@ namespace SeriStruct
          * @brief Construct a new Record object
          * 
          * @param alloc_size is the size of the internal buffer, which should be the sum of the size of all
-         * the derived object's fields.
+         * the derived object's fields
          */
         Record(const size_t alloc_size) : alloc_size{alloc_size} { alloc(); };
 
@@ -68,6 +68,19 @@ namespace SeriStruct
         Record(std::istream &istr, const size_t alloc_size) : Record{alloc_size}
         {
             from_stream(istr);
+        }
+
+        /**
+         * @brief Construct a new Record object by copying from \p buffer.
+         * 
+         * @param buffer is a buffer of bytes that matches the underling struct (such as from copy_to"()")
+         * @param buffer_size is the size of \p buffer
+         * @param alloc_size is the size of the internal buffer, which should be the sum of the size of all
+         * the derived object's fields
+         */
+        Record(const unsigned char *buffer, const size_t buffer_size, const size_t alloc_size) : Record{alloc_size}
+        {
+            from_array(buffer, buffer_size);
         }
 
         /**
@@ -93,9 +106,16 @@ namespace SeriStruct
          * 
          * @param ostr is a std::ostream ready for writing
          */
-        void write(std::ostream & ostr) const;
+        void write(std::ostream &ostr) const;
 
         friend std::ostream &operator<<(std::ostream &, const Record &);
+
+        /**
+         * @brief Copies the internal buffer representation of this record to \p buffer.
+         * 
+         * @param buffer is the destination buffer. Make sure at least size"()" bytes are available.
+         */
+        void copy_to(unsigned char *buffer) const;
 
     protected:
         /**
@@ -133,6 +153,7 @@ namespace SeriStruct
         {
             buffer = new unsigned char[alloc_size];
         }
+        void from_array(const unsigned char *buffer, const size_t buffer_size);
         void from_stream(std::istream &istr);
     };
 

@@ -1,12 +1,9 @@
-include(CTest)
-enable_testing()
 
 add_executable (tests tests.cpp)
 
 target_link_libraries (tests LINK_PUBLIC SeriStruct)
 target_compile_features (tests PUBLIC cxx_std_17)
 
-include (ParseAndAddCatchTests)
 ParseAndAddCatchTests(tests)
 
 add_custom_command(

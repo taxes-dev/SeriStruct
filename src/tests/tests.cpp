@@ -9,7 +9,7 @@ using SeriStruct::Record;
 struct TestRecord : public Record
 {
 public:
-    TestRecord(uint32_t a, int32_t b, float_t c, bool d, bool e, float_t f, char g)
+    TestRecord(uint32_t a, int32_t b, float c, bool d, bool e, float f, char g)
         : Record{buffer_size}
     {
         assign_buffer(offset_a, a);
@@ -24,26 +24,29 @@ public:
         : Record{istr, buffer_size}
     {
     }
+    TestRecord(const unsigned char *buffer, const size_t buffer_size) : Record{buffer, buffer_size, TestRecord::buffer_size}
+    {
+    }
     ~TestRecord()
     {
     }
 
     inline uint32_t &a() const { return buffer_at<uint32_t>(offset_a); }
     inline int32_t &b() const { return buffer_at<int32_t>(offset_b); }
-    inline float_t &c() const { return buffer_at<float_t>(offset_c); }
+    inline float &c() const { return buffer_at<float>(offset_c); }
     inline bool &d() const { return buffer_at<bool>(offset_d); }
     inline bool &e() const { return buffer_at<bool>(offset_e); }
-    inline float_t &f() const { return buffer_at<float_t>(offset_f); }
+    inline float &f() const { return buffer_at<float>(offset_f); }
     inline char &g() const { return buffer_at<char>(offset_g); }
 
 private:
     static constexpr size_t offset_a = 0;
     static constexpr size_t offset_b = offset_a + sizeof(uint32_t); // offset of previous field + size of previous field
     static constexpr size_t offset_c = offset_b + sizeof(int32_t);
-    static constexpr size_t offset_d = offset_c + sizeof(float_t);
+    static constexpr size_t offset_d = offset_c + sizeof(float);
     static constexpr size_t offset_e = offset_d + sizeof(bool);
     static constexpr size_t offset_f = offset_e + sizeof(bool) + 2; // keep following float 4-byte aligned
-    static constexpr size_t offset_g = offset_f + sizeof(float_t);
+    static constexpr size_t offset_g = offset_f + sizeof(float);
     static constexpr size_t buffer_size = offset_g + sizeof(char); // the end of the struct
 };
 
@@ -158,7 +161,7 @@ TEST_CASE("Read record with incorrect size throws exception")
     s.sync();
     s.seekg(0);
 
-    REQUIRE_THROWS_AS([&s] { TestRecord record{s}; }(), SeriStruct::invalid_size);
+    REQUIRE_THROWS_AS(TestRecord(s), SeriStruct::invalid_size);
 }
 
 TEST_CASE("Read record with insufficent data throws exception")
@@ -176,5 +179,61 @@ TEST_CASE("Read record with insufficent data throws exception")
     s.sync();
     s.seekg(0);
 
-    REQUIRE_THROWS_AS([&s] { TestRecord record{s}; }(), SeriStruct::not_enough_data);
+    REQUIRE_THROWS_AS(TestRecord(s), SeriStruct::not_enough_data);
+}
+
+TEST_CASE("Copy to a buffer")
+{
+    TestRecord record{1997, 1883, -999.99f, true, false, 1.0f, '-'};
+
+    unsigned char buffer[EXPECTED_BUFFER_SIZE];
+    record.copy_to(buffer);
+
+    unsigned char RECORD_BYTES[] = {
+        0xcd, 0x07, 0x00, 0x00, // a
+        0x5b, 0x07, 0x00, 0x00, // b
+        0x5c, 0xff, 0x79, 0xc4, // c
+        0x01, 0x00, 0x00, 0x00, // d, e, padding
+        0x00, 0x00, 0x80, 0x3f, // f
+        0x2d,                   // g
+    };
+
+    for (size_t i = 0; i < sizeof(RECORD_BYTES); i++)
+    {
+        REQUIRE(RECORD_BYTES[i] == buffer[i]);
+    }
+}
+
+TEST_CASE("Copy from a buffer")
+{
+    unsigned char RECORD_BYTES[] = {
+        0xcd, 0x07, 0x00, 0x00, // a
+        0x5b, 0x07, 0x00, 0x00, // b
+        0x5c, 0xff, 0x79, 0xc4, // c
+        0x01, 0x00, 0x00, 0x00, // d, e, padding
+        0x00, 0x00, 0x80, 0x3f, // f
+        0x2d,                   // g
+    };
+
+    TestRecord record{RECORD_BYTES, EXPECTED_BUFFER_SIZE};
+
+    REQUIRE(record.a() == 1997);
+    REQUIRE(record.b() == 1883);
+    REQUIRE(record.c() == -999.99_a);
+    REQUIRE(record.d());
+    REQUIRE_FALSE(record.e());
+    REQUIRE(record.f() == 1.0_a);
+    REQUIRE(record.g() == '-');
+}
+
+TEST_CASE("Copy from a buffer with incorrect size throws an exception")
+{
+    unsigned char RECORD_BYTES[] = {
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    };
+
+    REQUIRE_THROWS_AS(TestRecord(RECORD_BYTES, 4), SeriStruct::invalid_size);
 }

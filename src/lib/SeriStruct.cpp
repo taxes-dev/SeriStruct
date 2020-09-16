@@ -1,3 +1,4 @@
+#include <cstring>
 #include "SeriStruct.hpp"
 
 namespace SeriStruct
@@ -23,6 +24,20 @@ namespace SeriStruct
         {
             ostr << this->buffer[i];
         }
+    }
+
+    void Record::copy_to(unsigned char * buffer) const
+    {
+        std::memcpy(buffer, this->buffer, size());
+    }
+
+    void Record::from_array(const unsigned char * buffer, const size_t buffer_size)
+    {
+        if (buffer_size != size())
+        {
+            throw invalid_size{};
+        }
+        std::memcpy(this->buffer, buffer, size());
     }
 
     void Record::from_stream(std::istream &istr)
