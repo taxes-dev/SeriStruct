@@ -88,6 +88,13 @@ namespace SeriStruct
          */
         inline size_t size() const { return alloc_size; };
 
+        /**
+         * @brief Writes this Record to \p ostr.
+         * 
+         * @param ostr is a std::ostream ready for writing
+         */
+        void write(std::ostream & ostr) const;
+
         friend std::ostream &operator<<(std::ostream &, const Record &);
 
     protected:

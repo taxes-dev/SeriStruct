@@ -14,5 +14,5 @@ add_custom_command(
      COMMENT "Run tests"
      POST_BUILD 
      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-     COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --progress --output-on-failures
+     COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --progress --output-on-failure
 )

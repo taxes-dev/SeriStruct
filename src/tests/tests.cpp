@@ -69,6 +69,7 @@ TEST_CASE("Write record to output stream")
 {
     TestRecord record{3, -140, 0.0f, false, true, 14999.535f, 'Z'};
 
+    // test writing to an ostream
     std::stringstream s;
     s << record;
     s.sync();
@@ -91,6 +92,22 @@ TEST_CASE("Write record to output stream")
     for (; iter != std::istream_iterator<unsigned char>{}; iter++, p++)
     {
         REQUIRE(*iter == *p);
+    }
+
+    // using write() or << should have identical behavior
+    std::stringstream s2;
+    record.write(s2);
+    s2.sync();
+
+    REQUIRE(s2.tellp() == EXPECTED_BUFFER_SIZE + sizeof(uint64_t));
+
+    s.seekg(0);
+    s2.seekg(0);
+    auto iter1 = std::istream_iterator<unsigned char>{s};
+    auto iter2 = std::istream_iterator<unsigned char>{s2};
+    for (; iter1 != std::istream_iterator<unsigned char>{} && iter2 != std::istream_iterator<unsigned char>{}; iter1++, iter2++)
+    {
+        REQUIRE(*iter1 == *iter2);
     }
 }
 
