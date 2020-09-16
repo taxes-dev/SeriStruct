@@ -27,6 +27,8 @@ public:
     TestRecord(const unsigned char *buffer, const size_t buffer_size) : Record{buffer, buffer_size, TestRecord::buffer_size}
     {
     }
+    TestRecord(const TestRecord &other) : Record{other} {}
+    TestRecord(TestRecord && other) : Record{std::move(other)} {}
     ~TestRecord()
     {
     }
@@ -236,4 +238,31 @@ TEST_CASE("Copy from a buffer with incorrect size throws an exception")
     };
 
     REQUIRE_THROWS_AS(TestRecord(RECORD_BYTES, 4), SeriStruct::invalid_size);
+}
+
+TEST_CASE("Copy and move constructors")
+{
+    // copy constructor
+    TestRecord record{34391, -5, 10.5f, true, true, -1111.0f, '('};
+    TestRecord record2{record};
+
+    REQUIRE(record.a() == record2.a());
+    REQUIRE(record.b() == record2.b());
+    REQUIRE(record.c() == record2.c());
+    REQUIRE(record.d() == record2.d());
+    REQUIRE(record.e() == record2.e());
+    REQUIRE(record.f() == record2.f());
+    REQUIRE(record.g() == record2.g());
+
+    // move constructor
+    TestRecord record3{std::move(record)};
+
+    REQUIRE(&record != &record3);
+    REQUIRE(record3.a() == record2.a());
+    REQUIRE(record3.b() == record2.b());
+    REQUIRE(record3.c() == record2.c());
+    REQUIRE(record3.d() == record2.d());
+    REQUIRE(record3.e() == record2.e());
+    REQUIRE(record3.f() == record2.f());
+    REQUIRE(record3.g() == record2.g());
 }

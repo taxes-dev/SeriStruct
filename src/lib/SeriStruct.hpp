@@ -3,6 +3,7 @@
 #include <exception>
 #include <iostream>
 #include <type_traits>
+#include <utility>
 
 namespace SeriStruct
 {
@@ -81,6 +82,29 @@ namespace SeriStruct
         Record(const unsigned char *buffer, const size_t buffer_size, const size_t alloc_size) : Record{alloc_size}
         {
             from_array(buffer, buffer_size);
+        }
+
+        /**
+         * @brief Construct a new Record object by copying \p other. Note that this operation will not likely be meaningful
+         * if \p other and this instance are not the same derived type.
+         * 
+         * @param other 
+         */
+        Record(const Record &other) : Record{other.alloc_size}
+        {
+            from_array(other.buffer, alloc_size);
+        }
+
+        /**
+         * @brief Construct a new Record object by moving \p other. Note that this operation will not likely be meaningful
+         * if \p other and this instance are not the same derived type. Attempts to access the fields of \p other after
+         * the move operation are undefined behavior.
+         * 
+         * @param other 
+         */
+        Record (Record && other): Record{other.alloc_size}
+        {
+            std::swap(buffer, other.buffer);
         }
 
         /**
