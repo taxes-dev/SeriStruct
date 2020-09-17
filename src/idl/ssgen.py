@@ -238,6 +238,7 @@ public:
                 else:
                     padding = (field.field_width - (current_offset % field.field_width)) % field.field_width
                     if padding:
+                        current_offset += padding
                         fd.write(f"{padding} /* padding */ + ")
                     fd.write(f"offset_{previous_field.field_name} + sizeof({previous_field.field_type})")
                 fd.write(";\n")

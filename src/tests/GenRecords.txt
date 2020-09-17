@@ -1,0 +1,8 @@
+"Used by tests_gen.cpp"
+GenRecordOne:
+    uint_field u32
+    int_field i32
+    char_field char
+    bool_field bool
+    dbl_field f64
+    float_field f32
