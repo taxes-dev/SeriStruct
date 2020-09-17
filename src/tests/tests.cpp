@@ -28,7 +28,7 @@ public:
     {
     }
     TestRecord(const TestRecord &other) : Record{other} {}
-    TestRecord(TestRecord && other) : Record{std::move(other)} {}
+    TestRecord(TestRecord &&other) : Record{std::move(other)} {}
     ~TestRecord()
     {
     }
@@ -47,7 +47,7 @@ private:
     static constexpr size_t offset_c = offset_b + sizeof(int32_t);
     static constexpr size_t offset_d = offset_c + sizeof(float);
     static constexpr size_t offset_e = offset_d + sizeof(bool);
-    static constexpr size_t offset_f = offset_e + sizeof(bool) + 2; // keep following float 4-byte aligned
+    static constexpr size_t offset_f = offset_e + sizeof(bool) + 2; // keep float 4-byte aligned
     static constexpr size_t offset_g = offset_f + sizeof(float);
     static constexpr size_t buffer_size = offset_g + sizeof(char); // the end of the struct
 };

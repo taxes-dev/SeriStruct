@@ -4,10 +4,12 @@ Lightweight C++ struct serializer inspired by a couple of CppCon 2020 talks, spe
 ## Requirements
 * CMake 3.16 or later
 * Modern C++ compiler (C++17)
+* Python 3.x
 
 ## Project Structure
-* `src/lib` - Contains the library and its header folder.
-* `src/tests` - Contains Catch2 unit test harness.
+* `src/idl` - Scripts for generating SeriStruct records from IDL.
+* `src/lib` - The library and its header.
+* `src/tests` - Catch2 unit test harness.
 
 Unit tests are run after every build.
 

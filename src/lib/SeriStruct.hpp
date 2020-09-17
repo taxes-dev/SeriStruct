@@ -92,6 +92,10 @@ namespace SeriStruct
          */
         Record(const Record &other) : Record{other.alloc_size}
         {
+            if (&other == this)
+            {
+                return;
+            }
             from_array(other.buffer, alloc_size);
         }
 
@@ -102,8 +106,12 @@ namespace SeriStruct
          * 
          * @param other 
          */
-        Record (Record && other): Record{other.alloc_size}
+        Record(Record &&other) : Record{other.alloc_size}
         {
+            if (&other == this)
+            {
+                return;
+            }
             std::swap(buffer, other.buffer);
         }
 
@@ -175,7 +183,7 @@ namespace SeriStruct
         unsigned char *buffer;
         void alloc()
         {
-            buffer = new unsigned char[alloc_size];
+            buffer = new unsigned char[alloc_size]();
         }
         void from_array(const unsigned char *buffer, const size_t buffer_size);
         void from_stream(std::istream &istr);

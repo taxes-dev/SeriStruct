@@ -26,12 +26,12 @@ namespace SeriStruct
         }
     }
 
-    void Record::copy_to(unsigned char * buffer) const
+    void Record::copy_to(unsigned char *buffer) const
     {
         std::memcpy(buffer, this->buffer, size());
     }
 
-    void Record::from_array(const unsigned char * buffer, const size_t buffer_size)
+    void Record::from_array(const unsigned char *buffer, const size_t buffer_size)
     {
         if (buffer_size != size())
         {
