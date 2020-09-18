@@ -11,6 +11,7 @@
 #include <sstream>
 
 using namespace Catch::literals;
+using Catch::WithinRel;
 using SeriStruct::Record;
 
 // Used in tests below, should be expected GenRecordOne.buffer_size
@@ -85,14 +86,15 @@ TEST_CASE("Generated record read from input stream", "[generated]")
         0xa5, 0x83, 0xf5, 0xff, 0xff, 0x69, 0xf8, 0x40, // dbl_field
         0x00, 0x00, 0xc0, 0xbf,                         // float_field
     };
-    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0]); i++)
     {
         s << RECORD_BYTES[i];
     }
     s.sync();
+    size_t stream_len = s.tellp();
     s.seekg(0);
 
-    GenRecordOne record{s, G1_EXPECTED_BUFFER_SIZE};
+    GenRecordOne record{s, stream_len};
 
     REQUIRE(record.uint_field() == 5);
     REQUIRE(record.int_field() == -1);
@@ -102,4 +104,44 @@ TEST_CASE("Generated record read from input stream", "[generated]")
     REQUIRE(record.float_field() == -1.5_a);
 
     REQUIRE(record.size() == G1_EXPECTED_BUFFER_SIZE);
+}
+
+TEST_CASE("Generated copy and move constructors", "[generated]")
+{
+    // copy constructor
+    GenRecordOne record{5, -1, 'a', true, 99999.99999, -1.5f};
+    GenRecordOne record2{record};
+
+    REQUIRE(record.uint_field() == record2.uint_field());
+    REQUIRE(record.int_field() == record2.int_field());
+    REQUIRE(record.char_field() == record2.char_field());
+    REQUIRE(record.bool_field() == record2.bool_field());
+    REQUIRE_THAT(record.dbl_field(), WithinRel(record2.dbl_field()));
+    REQUIRE_THAT(record.float_field(), WithinRel(record2.float_field()));
+
+    // move constructor
+    GenRecordOne record3{std::move(record)};
+
+    REQUIRE(&record != &record3);
+    REQUIRE(record3.uint_field() == record2.uint_field());
+    REQUIRE(record3.int_field() == record2.int_field());
+    REQUIRE(record3.char_field() == record2.char_field());
+    REQUIRE(record3.bool_field() == record2.bool_field());
+    REQUIRE_THAT(record3.dbl_field(), WithinRel(record2.dbl_field()));
+    REQUIRE_THAT(record3.float_field(), WithinRel(record2.float_field()));
+}
+
+TEST_CASE("Generated copy assignment operator", "[generated]")
+{
+    GenRecordOne record{5, -1, 'a', true, 99999.99999, -1.5f};
+    GenRecordOne record2{1997, -1883, '-', false, -999.99f, 1.0f};
+
+    record2 = record;
+
+    REQUIRE(record2.uint_field() == 5);
+    REQUIRE(record2.int_field() == -1);
+    REQUIRE(record2.char_field() == 'a');
+    REQUIRE(record2.bool_field());
+    REQUIRE(record2.dbl_field() == 99999.99999_a);
+    REQUIRE(record2.float_field() == -1.5_a);
 }

@@ -9,6 +9,7 @@
 #include <sstream>
 
 using namespace Catch::literals;
+using Catch::WithinRel;
 using SeriStruct::Record;
 
 struct TestRecord : public Record
@@ -36,6 +37,11 @@ public:
     TestRecord(TestRecord &&other) : Record{std::move(other)} {}
     ~TestRecord()
     {
+    }
+    TestRecord &operator=(const TestRecord &other)
+    {
+        Record::operator=(other);
+        return *this;
     }
 
     inline uint32_t &a() const { return buffer_at<uint32_t>(offset_a); }
@@ -130,14 +136,15 @@ TEST_CASE("Read record from input stream", "[static]")
         0x07, 0x1b, 0xb7, 0x49, // f
         0x3f,                   // g
     };
-    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0]); i++)
     {
         s << RECORD_BYTES[i];
     }
     s.sync();
+    size_t stream_len = s.tellp();
     s.seekg(0);
 
-    TestRecord record{s, EXPECTED_BUFFER_SIZE};
+    TestRecord record{s, stream_len};
 
     REQUIRE(record.a() == 999);
     REQUIRE(record.b() == 1414);
@@ -158,7 +165,7 @@ TEST_CASE("Read record with incorrect size throws exception", "[static]")
         0xe7, 0x03, 0x00, 0x00,                         // a
         0x86, 0x05, 0x00,                               // b... ?
     };
-    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0]); i++)
     {
         s << RECORD_BYTES[i];
     }
@@ -175,7 +182,7 @@ TEST_CASE("Read record with insufficent data throws exception", "[static]")
         0xe7, 0x03, 0x00, 0x00, // a
         0x86, 0x05, 0x00,       // b... ?
     };
-    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0]); i++)
     {
         s << RECORD_BYTES[i];
     }
@@ -201,7 +208,7 @@ TEST_CASE("Copy to a buffer", "[static]")
         0x2d,                   // g
     };
 
-    for (size_t i = 0; i < sizeof(RECORD_BYTES); i++)
+    for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0]); i++)
     {
         REQUIRE(RECORD_BYTES[i] == buffer[i]);
     }
@@ -218,7 +225,7 @@ TEST_CASE("Copy from a buffer", "[static]")
         0x2d,                   // g
     };
 
-    TestRecord record{RECORD_BYTES, EXPECTED_BUFFER_SIZE};
+    TestRecord record{RECORD_BYTES, sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0])};
 
     REQUIRE(record.a() == 1997);
     REQUIRE(record.b() == 1883);
@@ -238,7 +245,7 @@ TEST_CASE("Copy from a buffer with incorrect size throws an exception", "[static
         0x00,
     };
 
-    REQUIRE_THROWS_AS(TestRecord(RECORD_BYTES, 4), SeriStruct::invalid_size);
+    REQUIRE_THROWS_AS(TestRecord(RECORD_BYTES, sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0])), SeriStruct::invalid_size);
 }
 
 TEST_CASE("Copy and move constructors", "[static]")
@@ -249,10 +256,10 @@ TEST_CASE("Copy and move constructors", "[static]")
 
     REQUIRE(record.a() == record2.a());
     REQUIRE(record.b() == record2.b());
-    REQUIRE(record.c() == record2.c());
+    REQUIRE_THAT(record.c(), WithinRel(record2.c()));
     REQUIRE(record.d() == record2.d());
     REQUIRE(record.e() == record2.e());
-    REQUIRE(record.f() == record2.f());
+    REQUIRE_THAT(record.f(), WithinRel(record2.f()));
     REQUIRE(record.g() == record2.g());
 
     // move constructor
@@ -261,9 +268,25 @@ TEST_CASE("Copy and move constructors", "[static]")
     REQUIRE(&record != &record3);
     REQUIRE(record3.a() == record2.a());
     REQUIRE(record3.b() == record2.b());
-    REQUIRE(record3.c() == record2.c());
+    REQUIRE_THAT(record3.c(), WithinRel(record2.c()));
     REQUIRE(record3.d() == record2.d());
     REQUIRE(record3.e() == record2.e());
-    REQUIRE(record3.f() == record2.f());
+    REQUIRE_THAT(record3.f(), WithinRel(record2.f()));
     REQUIRE(record3.g() == record2.g());
+}
+
+TEST_CASE("Copy assignment operator", "[static]")
+{
+    TestRecord record{34391, -5, 10.5f, true, true, -1111.0f, '('};
+    TestRecord record2{1997, 1883, -999.99f, false, false, 1.0f, '-'};
+
+    record2 = record;
+
+    REQUIRE(record2.a() == 34391);
+    REQUIRE(record2.b() == -5);
+    REQUIRE(record2.c() == 10.5_a);
+    REQUIRE(record2.d());
+    REQUIRE(record2.e());
+    REQUIRE(record2.f() == -1111_a);
+    REQUIRE(record2.g() == '(');
 }

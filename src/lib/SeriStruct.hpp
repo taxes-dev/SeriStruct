@@ -93,11 +93,31 @@ namespace SeriStruct
          */
         Record(const Record &other) : Record{other.alloc_size}
         {
-            if (&other == this)
+            if (&other != this)
             {
-                return;
+                from_array(other.buffer, alloc_size);
             }
-            from_array(other.buffer, alloc_size);
+        }
+
+        /**
+         * @brief Copy assignment operator
+         * 
+         * @param other 
+         * @return Record& 
+         */
+        Record &operator=(const Record &other)
+        {
+            if (&other != this)
+            {
+                alloc_size = other.alloc_size;
+                if (buffer)
+                {
+                    delete[] buffer;
+                }
+                alloc();
+                from_array(other.buffer, other.alloc_size);
+            }
+            return *this;
         }
 
         /**
@@ -109,11 +129,10 @@ namespace SeriStruct
          */
         Record(Record &&other) : Record{other.alloc_size}
         {
-            if (&other == this)
+            if (&other != this)
             {
-                return;
+                std::swap(buffer, other.buffer);
             }
-            std::swap(buffer, other.buffer);
         }
 
         /**
@@ -180,7 +199,7 @@ namespace SeriStruct
         }
 
     private:
-        const size_t alloc_size;
+        size_t alloc_size;
         unsigned char *buffer;
         void alloc()
         {

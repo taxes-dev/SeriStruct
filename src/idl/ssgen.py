@@ -216,7 +216,12 @@ public:
     {idl.struct_name}(const unsigned char *buffer, const size_t buffer_size) : Record{{buffer, buffer_size, {idl.struct_name}::buffer_size}} {{}}
     {idl.struct_name}(const {idl.struct_name} &other) : Record{{other}} {{}}
     {idl.struct_name}({idl.struct_name} &&other) : Record{{std::move(other)}} {{}}
-    ~{idl.struct_name}() {{}}\n\n""")
+    ~{idl.struct_name}() {{}}
+    {idl.struct_name} &operator=(const {idl.struct_name} &other)
+    {{
+        Record::operator=(other);
+        return *this;
+    }}\n\n""")
             
             # Write field getters
             for field in idl.fields:
