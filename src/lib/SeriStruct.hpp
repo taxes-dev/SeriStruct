@@ -60,15 +60,16 @@ namespace SeriStruct
          * @brief Construct a new Record object from a stream of bytes
          * 
          * @param istr is an open stream for reading the bytes
+         * @param read_size is the numer of bytes to read from \p istr
          * @param alloc_size is the size of the internal buffer, which should be the sum of the size of
          * all the derived object's fields
          * 
          * @exception SeriStruct::invalid_size if the size header doesn't match the expected \p alloc_size
          * @exception SeriStruct::not_enough_data if EOF is reached on \p istr before all data could be read
          */
-        Record(std::istream &istr, const size_t alloc_size) : Record{alloc_size}
+        Record(std::istream &istr, const size_t read_size, const size_t alloc_size) : Record{alloc_size}
         {
-            from_stream(istr);
+            from_stream(istr, read_size);
         }
 
         /**
@@ -186,7 +187,7 @@ namespace SeriStruct
             buffer = new unsigned char[alloc_size]();
         }
         void from_array(const unsigned char *buffer, const size_t buffer_size);
-        void from_stream(std::istream &istr);
+        void from_stream(std::istream &istr, const size_t read_size);
     };
 
 } // namespace SeriStruct

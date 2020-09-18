@@ -39,17 +39,15 @@ TEST_CASE("Generated record write to output stream", "[generated]")
     s << record;
     s.sync();
 
-    // expect the buffer to include an additional 64-bits of size info
-    REQUIRE(s.tellp() == G1_EXPECTED_BUFFER_SIZE + sizeof(uint64_t));
+    REQUIRE(s.tellp() == G1_EXPECTED_BUFFER_SIZE);
 
     unsigned char EXPECTED_BYTES[] = {
-        G1_EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
-        0x05, 0x00, 0x00, 0x00,                                            // uint_field
-        0xff, 0xff, 0xff, 0xff,                                            // int_field
-        0x61, 0x01,                                                        // char_field, bool_field
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,                                // padding
-        0xa5, 0x83, 0xf5, 0xff, 0xff, 0x69, 0xf8, 0x40,                    // dbl_field
-        0x00, 0x00, 0xc0, 0xbf,                                            // float_field
+        0x05, 0x00, 0x00, 0x00,                         // uint_field
+        0xff, 0xff, 0xff, 0xff,                         // int_field
+        0x61, 0x01,                                     // char_field, bool_field
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,             // padding
+        0xa5, 0x83, 0xf5, 0xff, 0xff, 0x69, 0xf8, 0x40, // dbl_field
+        0x00, 0x00, 0xc0, 0xbf,                         // float_field
     };
     unsigned char *p = EXPECTED_BYTES;
     s.seekg(0);
@@ -64,7 +62,7 @@ TEST_CASE("Generated record write to output stream", "[generated]")
     record.write(s2);
     s2.sync();
 
-    REQUIRE(s2.tellp() == G1_EXPECTED_BUFFER_SIZE + sizeof(uint64_t));
+    REQUIRE(s2.tellp() == G1_EXPECTED_BUFFER_SIZE);
 
     s.seekg(0);
     s2.seekg(0);
@@ -80,13 +78,12 @@ TEST_CASE("Generated record read from input stream", "[generated]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {
-        G1_EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
-        0x05, 0x00, 0x00, 0x00,                                            // uint_field
-        0xff, 0xff, 0xff, 0xff,                                            // int_field
-        0x61, 0x01,                                                        // char_field, bool_field
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,                                // padding
-        0xa5, 0x83, 0xf5, 0xff, 0xff, 0x69, 0xf8, 0x40,                    // dbl_field
-        0x00, 0x00, 0xc0, 0xbf,                                            // float_field
+        0x05, 0x00, 0x00, 0x00,                         // uint_field
+        0xff, 0xff, 0xff, 0xff,                         // int_field
+        0x61, 0x01,                                     // char_field, bool_field
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,             // padding
+        0xa5, 0x83, 0xf5, 0xff, 0xff, 0x69, 0xf8, 0x40, // dbl_field
+        0x00, 0x00, 0xc0, 0xbf,                         // float_field
     };
     for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
     {
@@ -95,7 +92,7 @@ TEST_CASE("Generated record read from input stream", "[generated]")
     s.sync();
     s.seekg(0);
 
-    GenRecordOne record{s};
+    GenRecordOne record{s, G1_EXPECTED_BUFFER_SIZE};
 
     REQUIRE(record.uint_field() == 5);
     REQUIRE(record.int_field() == -1);

@@ -212,7 +212,7 @@ public:
             fd.write("    }\n")
 
             # Write remaining boilerplate constructors
-            fd.write(f"""    {idl.struct_name}(std::istream &istr) : Record{{istr, buffer_size}} {{}}
+            fd.write(f"""    {idl.struct_name}(std::istream &istr, const size_t read_size) : Record{{istr, read_size, buffer_size}} {{}}
     {idl.struct_name}(const unsigned char *buffer, const size_t buffer_size) : Record{{buffer, buffer_size, {idl.struct_name}::buffer_size}} {{}}
     {idl.struct_name}(const {idl.struct_name} &other) : Record{{other}} {{}}
     {idl.struct_name}({idl.struct_name} &&other) : Record{{std::move(other)}} {{}}

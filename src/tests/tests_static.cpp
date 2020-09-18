@@ -25,8 +25,8 @@ public:
         assign_buffer(offset_f, f);
         assign_buffer(offset_g, g);
     }
-    TestRecord(std::istream &istr)
-        : Record{istr, buffer_size}
+    TestRecord(std::istream &istr, const size_t read_size)
+        : Record{istr, read_size, buffer_size}
     {
     }
     TestRecord(const unsigned char *buffer, const size_t buffer_size) : Record{buffer, buffer_size, TestRecord::buffer_size}
@@ -84,17 +84,15 @@ TEST_CASE("Write record to output stream", "[static]")
     s << record;
     s.sync();
 
-    // expect the buffer to include an additional 64-bits of size info
-    REQUIRE(s.tellp() == EXPECTED_BUFFER_SIZE + sizeof(uint64_t));
+    REQUIRE(s.tellp() == EXPECTED_BUFFER_SIZE);
 
     unsigned char EXPECTED_BYTES[] = {
-        EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
-        0x03, 0x00, 0x00, 0x00,                                         // a
-        0x74, 0xff, 0xff, 0xff,                                         // b
-        0x00, 0x00, 0x00, 0x00,                                         // c
-        0x00, 0x01, 0x00, 0x00,                                         // d, e, padding
-        0x24, 0x5e, 0x6a, 0x46,                                         // f
-        0x5a                                                            // g
+        0x03, 0x00, 0x00, 0x00, // a
+        0x74, 0xff, 0xff, 0xff, // b
+        0x00, 0x00, 0x00, 0x00, // c
+        0x00, 0x01, 0x00, 0x00, // d, e, padding
+        0x24, 0x5e, 0x6a, 0x46, // f
+        0x5a                    // g
     };
     unsigned char *p = EXPECTED_BYTES;
     s.seekg(0);
@@ -109,7 +107,7 @@ TEST_CASE("Write record to output stream", "[static]")
     record.write(s2);
     s2.sync();
 
-    REQUIRE(s2.tellp() == EXPECTED_BUFFER_SIZE + sizeof(uint64_t));
+    REQUIRE(s2.tellp() == EXPECTED_BUFFER_SIZE);
 
     s.seekg(0);
     s2.seekg(0);
@@ -125,13 +123,12 @@ TEST_CASE("Read record from input stream", "[static]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {
-        EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
-        0xe7, 0x03, 0x00, 0x00,                                         // a
-        0x86, 0x05, 0x00, 0x00,                                         // b
-        0x66, 0x66, 0x04, 0xc2,                                         // c
-        0x01, 0x00, 0x00, 0x00,                                         // d, e, padding
-        0x07, 0x1b, 0xb7, 0x49,                                         // f
-        0x3f,                                                           // g
+        0xe7, 0x03, 0x00, 0x00, // a
+        0x86, 0x05, 0x00, 0x00, // b
+        0x66, 0x66, 0x04, 0xc2, // c
+        0x01, 0x00, 0x00, 0x00, // d, e, padding
+        0x07, 0x1b, 0xb7, 0x49, // f
+        0x3f,                   // g
     };
     for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
     {
@@ -140,7 +137,7 @@ TEST_CASE("Read record from input stream", "[static]")
     s.sync();
     s.seekg(0);
 
-    TestRecord record{s};
+    TestRecord record{s, EXPECTED_BUFFER_SIZE};
 
     REQUIRE(record.a() == 999);
     REQUIRE(record.b() == 1414);
@@ -168,16 +165,15 @@ TEST_CASE("Read record with incorrect size throws exception", "[static]")
     s.sync();
     s.seekg(0);
 
-    REQUIRE_THROWS_AS(TestRecord(s), SeriStruct::invalid_size);
+    REQUIRE_THROWS_AS(TestRecord(s, sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0])), SeriStruct::invalid_size);
 }
 
 TEST_CASE("Read record with insufficent data throws exception", "[static]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {
-        EXPECTED_BUFFER_SIZE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
-        0xe7, 0x03, 0x00, 0x00,                                         // a
-        0x86, 0x05, 0x00,                                               // b... ?
+        0xe7, 0x03, 0x00, 0x00, // a
+        0x86, 0x05, 0x00,       // b... ?
     };
     for (size_t i = 0; i < sizeof(RECORD_BYTES) / sizeof(unsigned char); i++)
     {
@@ -186,7 +182,7 @@ TEST_CASE("Read record with insufficent data throws exception", "[static]")
     s.sync();
     s.seekg(0);
 
-    REQUIRE_THROWS_AS(TestRecord(s), SeriStruct::not_enough_data);
+    REQUIRE_THROWS_AS(TestRecord(s, EXPECTED_BUFFER_SIZE), SeriStruct::not_enough_data);
 }
 
 TEST_CASE("Copy to a buffer", "[static]")
