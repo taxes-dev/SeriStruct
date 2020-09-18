@@ -43,6 +43,17 @@ class RecordField:
         self.comments = []
         self.field_type = ""
         self.field_width = 0
+        self.array_size = 0
+
+    def cpp_type(self, ctor=False):
+        if self.array_size:
+            return f"{'const ' if ctor else ''}std::array<{self.field_type}, {self.array_size}>{' &' if ctor else ''}"
+        return self.field_type
+    
+    def total_width(self):
+        if self.array_size:
+            return self.field_width * self.array_size
+        return self.field_width
 
 def help():
     print("Generates SeriStruct records from IDL\n")
@@ -67,7 +78,17 @@ def parse_field(field):
     fields = field.split()
     if len(fields) != 2:
         return None
-    if fields[1] in type_map:
+    array_matches = re.match(r"^([^\[]+)\[(\d+)\]$", fields[1])
+    if array_matches:
+        groups = array_matches.groups()
+        if groups[0] in type_map:
+            record_field = RecordField()
+            record_field.field_name = fields[0]
+            record_field.field_type = type_map[groups[0]][0]
+            record_field.field_width = type_map[groups[0]][1]
+            record_field.array_size = int(groups[1])
+            return record_field
+    elif fields[1] in type_map:
         record_field = RecordField()
         record_field.field_name = fields[0]
         record_field.field_type = type_map[fields[1]][0]
@@ -205,7 +226,7 @@ public:
             for (idx, field) in enumerate(idl.fields):
                 if idx > 0:
                     fd.write(", ")
-                fd.write(f"{field.field_type} {field.field_name}")
+                fd.write(f"{field.cpp_type(ctor=True)} {field.field_name}")
             fd.write(")\n        : Record{}\n    {\n")
             fd.write("        alloc(buffer_size);\n")
             for field in idl.fields:
@@ -231,7 +252,10 @@ public:
                     for comment in field.comments:
                         fd.write(f"     * {comment}\n")
                     fd.write("     */\n")
-                fd.write(f"    inline {field.field_type} &{field.field_name}() const {{ return buffer_at<{field.field_type}>(offset_{field.field_name}); }}\n")
+                fd.write(f"    inline {field.cpp_type()} &{field.field_name}() const {{ return buffer_at<{field.field_type}")
+                if field.array_size:
+                    fd.write(f", {field.array_size}")
+                fd.write(f">(offset_{field.field_name}); }}\n")
             
             fd.write("\nprivate:\n")
             # Calculate offsets and write private fields
@@ -246,11 +270,11 @@ public:
                     if padding:
                         current_offset += padding
                         fd.write(f"{padding} /* padding */ + ")
-                    fd.write(f"offset_{previous_field.field_name} + sizeof({previous_field.field_type})")
+                    fd.write(f"offset_{previous_field.field_name} + sizeof({previous_field.cpp_type()})")
                 fd.write(";\n")
-                current_offset += field.field_width
+                current_offset += field.total_width()
                 previous_field = field
-            fd.write(f"    static constexpr size_t buffer_size = offset_{previous_field.field_name} + sizeof({previous_field.field_type});\n")
+            fd.write(f"    static constexpr size_t buffer_size = offset_{previous_field.field_name} + sizeof({previous_field.cpp_type()});\n")
             
             # Write close of class
             fd.write("};\n")

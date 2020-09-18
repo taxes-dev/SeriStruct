@@ -6,3 +6,10 @@ GenRecordOne:
     bool_field bool
     dbl_field f64
     float_field f32
+
+"Used by tests_arr_opt.cpp"
+ArrayRecord:
+    first_array i32[3]
+    int_field i32
+    second_array char[5]
+    third_array f32[2]

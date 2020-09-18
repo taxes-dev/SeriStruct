@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <exception>
@@ -192,6 +193,14 @@ namespace SeriStruct
             *(reinterpret_cast<T *>(buffer + offset)) = value;
         }
 
+        template <typename T, size_t N, typename = typename std::enable_if<std::is_integral<T>::value || std::is_floating_point<T>::value>::type>
+        inline void assign_buffer(const size_t &offset, const std::array<T, N> &value)
+        {
+            assert(("Buffer was not allocated", buffer));
+            assert(("Attempt to write past end of buffer", offset + sizeof(T) * N <= alloc_size));
+            *(reinterpret_cast<std::array<T, N> *>(buffer + offset)) = value;
+        }
+
         /**
          * @brief Gets a value at a particular offset in the buffer. Note that the return value must
          * be an integral or floating point.
@@ -206,6 +215,14 @@ namespace SeriStruct
             assert(("Buffer was not allocated", buffer));
             assert(("Attempt to read past end of buffer", offset + sizeof(T) <= alloc_size));
             return *(reinterpret_cast<T *>(buffer + offset));
+        }
+
+        template <typename T, size_t N, typename = typename std::enable_if<std::is_integral<T>::value || std::is_floating_point<T>::value>::type>
+        inline std::array<T, N> &buffer_at(const size_t &offset) const
+        {
+            assert(("Buffer was not allocated", buffer));
+            assert(("Attempt to read past end of buffer", offset + sizeof(T) * N <= alloc_size));
+            return *(reinterpret_cast<std::array<T, N> *>(buffer + offset));
         }
 
         /**

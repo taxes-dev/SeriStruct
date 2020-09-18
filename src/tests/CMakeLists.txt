@@ -2,7 +2,7 @@
 find_package (Python COMPONENTS Interpreter)
 
 add_custom_target(pre_tests)
-add_executable (tests tests.cpp tests_static.cpp tests_gen.cpp)
+add_executable (tests tests.cpp tests_static.cpp tests_gen.cpp tests_arr_opt.cpp)
 add_dependencies(tests pre_tests)
 
 target_link_libraries (tests LINK_PUBLIC SeriStruct)
