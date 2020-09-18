@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <cstddef>
 #include <exception>
 #include <iostream>
@@ -41,47 +42,49 @@ namespace SeriStruct
 
     /**
      * @brief An immutable set of data that can be serialized/deserialized into raw bytes. Classes
-     * that derive from Record should insert data in the constructor using Record::assign_buffer"()" and
-     * implement getters that read from the internal buffer using Record::buffer_at"()".
+     * that derive from Record should insert data in the constructor using Record::assign_buffer() and
+     * implement getters that read from the internal buffer using Record::buffer_at().
      * 
      */
     class Record
     {
     public:
         /**
-         * @brief Construct a new Record object
-         * 
-         * @param alloc_size is the size of the internal buffer, which should be the sum of the size of all
-         * the derived object's fields
-         */
-        Record(const size_t alloc_size) : alloc_size{alloc_size} { alloc(); };
-
-        /**
          * @brief Construct a new Record object from a stream of bytes
          * 
          * @param istr is an open stream for reading the bytes
          * @param read_size is the numer of bytes to read from \p istr
-         * @param alloc_size is the size of the internal buffer, which should be the sum of the size of
-         * all the derived object's fields
+         * @param expected_size is the minimum size of data this struct expects
          * 
-         * @exception SeriStruct::invalid_size if the size header doesn't match the expected \p alloc_size
+         * @exception SeriStruct::invalid_size if \p read_size < \p expected_size
          * @exception SeriStruct::not_enough_data if EOF is reached on \p istr before all data could be read
          */
-        Record(std::istream &istr, const size_t read_size, const size_t alloc_size) : Record{alloc_size}
+        Record(std::istream &istr, const size_t read_size, const size_t expected_size) : Record{}
         {
+            if (read_size < expected_size)
+            {
+                throw invalid_size{};
+            }
+            alloc(read_size);
             from_stream(istr, read_size);
         }
 
         /**
          * @brief Construct a new Record object by copying from \p buffer.
          * 
-         * @param buffer is a buffer of bytes that matches the underling struct (such as from copy_to"()")
+         * @param buffer is a buffer of bytes that matches the underling struct (such as from copy_to())
          * @param buffer_size is the size of \p buffer
-         * @param alloc_size is the size of the internal buffer, which should be the sum of the size of all
-         * the derived object's fields
+         * @param expected_size is the minimum size of data this struct expects
+         * 
+         * @exception SeriStruct::invalid_size if \p buffer_size < \p expected_size
          */
-        Record(const unsigned char *buffer, const size_t buffer_size, const size_t alloc_size) : Record{alloc_size}
+        Record(const unsigned char *buffer, const size_t buffer_size, const size_t expected_size) : Record{}
         {
+            if (buffer_size < expected_size)
+            {
+                throw invalid_size{};
+            }
+            alloc(buffer_size);
             from_array(buffer, buffer_size);
         }
 
@@ -91,10 +94,11 @@ namespace SeriStruct
          * 
          * @param other 
          */
-        Record(const Record &other) : Record{other.alloc_size}
+        Record(const Record &other) : Record{}
         {
             if (&other != this)
             {
+                alloc(other.alloc_size);
                 from_array(other.buffer, alloc_size);
             }
         }
@@ -109,12 +113,7 @@ namespace SeriStruct
         {
             if (&other != this)
             {
-                alloc_size = other.alloc_size;
-                if (buffer)
-                {
-                    delete[] buffer;
-                }
-                alloc();
+                alloc(other.alloc_size);
                 from_array(other.buffer, other.alloc_size);
             }
             return *this;
@@ -127,10 +126,11 @@ namespace SeriStruct
          * 
          * @param other 
          */
-        Record(Record &&other) : Record{other.alloc_size}
+        Record(Record &&other) : Record{}
         {
             if (&other != this)
             {
+                std::swap(alloc_size, other.alloc_size);
                 std::swap(buffer, other.buffer);
             }
         }
@@ -165,11 +165,17 @@ namespace SeriStruct
         /**
          * @brief Copies the internal buffer representation of this record to \p buffer.
          * 
-         * @param buffer is the destination buffer. Make sure at least size"()" bytes are available.
+         * @param buffer is the destination buffer. Make sure at least size() bytes are available.
          */
         void copy_to(unsigned char *buffer) const;
 
     protected:
+        /**
+         * @brief Construct a new Record object
+         * 
+         */
+        Record() : alloc_size{0}, buffer{nullptr} {}
+
         /**
          * @brief Assigns a value to a particular offset in the buffer. Note that \p value must be an
          * integral or floating point.
@@ -181,6 +187,8 @@ namespace SeriStruct
         template <typename T, typename = typename std::enable_if<std::is_integral<T>::value || std::is_floating_point<T>::value>::type>
         inline void assign_buffer(const size_t &offset, const T &value)
         {
+            assert(("Buffer was not allocated", buffer));
+            assert(("Attempt to write past end of buffer", offset + sizeof(T) <= alloc_size));
             *(reinterpret_cast<T *>(buffer + offset)) = value;
         }
 
@@ -195,16 +203,29 @@ namespace SeriStruct
         template <typename T, typename = typename std::enable_if<std::is_integral<T>::value || std::is_floating_point<T>::value>::type>
         inline T &buffer_at(const size_t &offset) const
         {
+            assert(("Buffer was not allocated", buffer));
+            assert(("Attempt to read past end of buffer", offset + sizeof(T) <= alloc_size));
             return *(reinterpret_cast<T *>(buffer + offset));
+        }
+
+        /**
+         * @brief Allocates the underlying buffer.
+         * 
+         * @param alloc_size is the size to allocate in bytes
+         */
+        void alloc(const size_t &alloc_size)
+        {
+            this->alloc_size = alloc_size;
+            if (buffer)
+            {
+                delete[] buffer;
+            }
+            buffer = new unsigned char[alloc_size]();
         }
 
     private:
         size_t alloc_size;
         unsigned char *buffer;
-        void alloc()
-        {
-            buffer = new unsigned char[alloc_size]();
-        }
         void from_array(const unsigned char *buffer, const size_t buffer_size);
         void from_stream(std::istream &istr, const size_t read_size);
     };

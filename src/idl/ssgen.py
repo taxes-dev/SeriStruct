@@ -206,7 +206,8 @@ public:
                 if idx > 0:
                     fd.write(", ")
                 fd.write(f"{field.field_type} {field.field_name}")
-            fd.write(")\n        : Record{buffer_size}\n    {\n")
+            fd.write(")\n        : Record{}\n    {\n")
+            fd.write("        alloc(buffer_size);\n")
             for field in idl.fields:
                 fd.write(f"        assign_buffer(offset_{field.field_name}, {field.field_name});\n")
             fd.write("    }\n")

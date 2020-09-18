@@ -16,8 +16,9 @@ struct TestRecord : public Record
 {
 public:
     TestRecord(uint32_t a, int32_t b, float c, bool d, bool e, float f, char g)
-        : Record{buffer_size}
+        : Record{}
     {
+        alloc(buffer_size);
         assign_buffer(offset_a, a);
         assign_buffer(offset_b, b);
         assign_buffer(offset_c, c);
@@ -161,7 +162,6 @@ TEST_CASE("Read record with incorrect size throws exception", "[static]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {
-        0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size() as unit64_t
         0xe7, 0x03, 0x00, 0x00,                         // a
         0x86, 0x05, 0x00,                               // b... ?
     };
