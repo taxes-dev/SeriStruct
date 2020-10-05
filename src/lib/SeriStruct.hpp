@@ -2,6 +2,7 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <exception>
 #include <iostream>
 #include <optional>
@@ -202,12 +203,27 @@ namespace SeriStruct
             *(reinterpret_cast<std::array<T, N> *>(buffer + offset)) = value;
         }
 
-        template<typename T>
+        template <typename T>
         inline void assign_buffer(const size_t &offset, const std::optional<T> &value)
         {
             assert(("Buffer was not allocated", buffer));
             assert(("Attempt to write past end of buffer", offset + sizeof(std::optional<T>) <= alloc_size));
             *(reinterpret_cast<std::optional<T> *>(buffer + offset)) = value;
+        }
+
+        inline void assign_buffer(const size_t &offset, const char *value, const size_t &maxlen)
+        {
+            assert(("Buffer was not allocated", buffer));
+            assert(("Attempt to write past end of buffer", offset + maxlen + sizeof(bool) + 1 <= alloc_size));
+            if (value == nullptr)
+            {
+                *(reinterpret_cast<char *>(buffer + offset)) = false;
+            }
+            else
+            {
+                *(reinterpret_cast<char *>(buffer + offset)) = true;
+                strncpy(reinterpret_cast<char *>(buffer + offset + sizeof(bool)), value, std::min(maxlen, strlen(value)));
+            }
         }
 
         /**
@@ -224,6 +240,27 @@ namespace SeriStruct
             assert(("Buffer was not allocated", buffer));
             assert(("Attempt to read past end of buffer", offset + sizeof(T) <= alloc_size));
             return *(reinterpret_cast<T *>(buffer + offset));
+        }
+
+        /**
+         * @brief Gets a C string at a particular offset in the buffer.
+         * 
+         * @param offset is the offset into the buffer
+         * @return const char* the C string at \p offset. May be nullptr.
+         */
+        inline const char *buffer_at_cstr(const size_t &offset) const
+        {
+            assert(("Buffer was not allocated", buffer));
+            assert(("Attempt to read past end of buffer", offset + sizeof(bool) + sizeof(char *) <= alloc_size));
+            bool is_present = buffer_at<bool>(offset);
+            if (is_present)
+            {
+                return reinterpret_cast<const char *>(buffer + offset + sizeof(bool));
+            }
+            else
+            {
+                return nullptr;
+            }
         }
 
         /**

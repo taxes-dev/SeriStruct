@@ -82,7 +82,7 @@ TEST_CASE("Allocate record with primitives", "[static]")
     REQUIRE(record.size() == EXPECTED_BUFFER_SIZE);
 }
 
-TEST_CASE("Write record to output stream", "[static]")
+TEST_CASE("Write record to output stream", "[static][stream]")
 {
     TestRecord record{3, -140, 0.0f, false, true, 14999.535f, 'Z'};
 
@@ -126,7 +126,7 @@ TEST_CASE("Write record to output stream", "[static]")
     }
 }
 
-TEST_CASE("Read record from input stream", "[static]")
+TEST_CASE("Read record from input stream", "[static][stream]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {
@@ -158,7 +158,7 @@ TEST_CASE("Read record from input stream", "[static]")
     REQUIRE(record.size() == EXPECTED_BUFFER_SIZE);
 }
 
-TEST_CASE("Read record with incorrect size throws exception", "[static]")
+TEST_CASE("Read record with incorrect size throws exception", "[static][stream]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {
@@ -175,7 +175,7 @@ TEST_CASE("Read record with incorrect size throws exception", "[static]")
     REQUIRE_THROWS_AS(TestRecord(s, sizeof(RECORD_BYTES) / sizeof(RECORD_BYTES[0])), SeriStruct::invalid_size);
 }
 
-TEST_CASE("Read record with insufficent data throws exception", "[static]")
+TEST_CASE("Read record with insufficent data throws exception", "[static][stream]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {
@@ -192,7 +192,7 @@ TEST_CASE("Read record with insufficent data throws exception", "[static]")
     REQUIRE_THROWS_AS(TestRecord(s, EXPECTED_BUFFER_SIZE), SeriStruct::not_enough_data);
 }
 
-TEST_CASE("Copy to a buffer", "[static]")
+TEST_CASE("Copy to a buffer", "[static][buffer]")
 {
     TestRecord record{1997, 1883, -999.99f, true, false, 1.0f, '-'};
 
@@ -214,7 +214,7 @@ TEST_CASE("Copy to a buffer", "[static]")
     }
 }
 
-TEST_CASE("Copy from a buffer", "[static]")
+TEST_CASE("Copy from a buffer", "[static][buffer]")
 {
     unsigned char RECORD_BYTES[] = {
         0xcd, 0x07, 0x00, 0x00, // a
@@ -236,7 +236,7 @@ TEST_CASE("Copy from a buffer", "[static]")
     REQUIRE(record.g() == '-');
 }
 
-TEST_CASE("Copy from a buffer with incorrect size throws an exception", "[static]")
+TEST_CASE("Copy from a buffer with incorrect size throws an exception", "[static][buffer]")
 {
     unsigned char RECORD_BYTES[] = {
         0x00,

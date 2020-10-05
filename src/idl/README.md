@@ -44,8 +44,12 @@ Each line must start with at least one whitespace character (spaces or tabs). In
 | u32 | uint32_t | 4 |
 | u64 | uint64_t | 8 |
 | uchar | unsigned char | 1 |
+| cstr | char * | 1 |
+| str | string | 1 |
 
 Additionally, a type can have a subscript (example: `i32[3]`). This indicates a fixed array and is represented via `std::array`. A type can also be optional (example: `optional<char>`), which is represented as `std::optional`.
+
+Note that `cstr` and `str` are not compatible with `optional`, and they must supply a maximum length using a subscript similar to an array. `cstr` requires 2 more bytes than the maximum length to account for the NUL terminator and a flag for whether the string is present or not (`nullptr`).
 
 Here's an example of a complete record:
 
@@ -66,6 +70,8 @@ TestRecord:
     an_array i32[3]
     "An optional character"
     maybe_char optional<char>
+    "This is a string with a maximum length of 50 characters"
+    a_string str[50]
 ```
 
 This would result in the following class:
@@ -108,6 +114,10 @@ public:
      * An optional character
      */
     inline std::optional<char> maybe_char() const { /*...*/ }
+    /**
+     * This is a string with a maximum length of 50 characters
+     */
+    inline std::string & a_string() const { /*...*/ }
 
 private:
     /* ... */

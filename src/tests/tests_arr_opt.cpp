@@ -38,7 +38,7 @@ TEST_CASE("Record with arrays", "[array]")
     }
 }
 
-TEST_CASE("Array record read/write to output stream", "[array]")
+TEST_CASE("Array record read/write to output stream", "[array][stream]")
 {
     std::stringstream s;
 
@@ -60,7 +60,7 @@ TEST_CASE("Array record read/write to output stream", "[array]")
     REQUIRE(record.third_array() == record2.third_array());
 }
 
-TEST_CASE("Array record copy to/from a buffer", "[array]")
+TEST_CASE("Array record copy to/from a buffer", "[array][buffer]")
 {
     std::array first_array{99, 100, 101};
     std::array second_array{' ', '-', '@', '$', '#'};
@@ -88,7 +88,7 @@ TEST_CASE("Record with optional", "[optional]")
     REQUIRE(record.second_opt().value() == 4);
 }
 
-TEST_CASE("Optional record read/write to output stream", "[optional]")
+TEST_CASE("Optional record read/write to output stream", "[optional][stream]")
 {
     std::stringstream s;
     std::optional<char> present{'p'};
@@ -107,7 +107,7 @@ TEST_CASE("Optional record read/write to output stream", "[optional]")
     REQUIRE_FALSE(record2.second_opt());
 }
 
-TEST_CASE("Optional record copy to/from a buffer", "[optional]")
+TEST_CASE("Optional record copy to/from a buffer", "[optional][buffer]")
 {
     std::optional<char> present1{'c'};
     std::optional<uint> present2{999};
@@ -134,7 +134,7 @@ TEST_CASE("Record with optional array", "[optional][array]")
     REQUIRE(record.opt_array_field().value() == arr);
 }
 
-TEST_CASE("Optional array record read/write to output stream", "[optional][array]")
+TEST_CASE("Optional array record read/write to output stream", "[optional][array][stream]")
 {
     std::stringstream s;
 
@@ -154,7 +154,7 @@ TEST_CASE("Optional array record read/write to output stream", "[optional][array
     REQUIRE(record2.opt_array_field().value() == arr);
 }
 
-TEST_CASE("Optional array record copy to/from a buffer", "[optional][array]")
+TEST_CASE("Optional array record copy to/from a buffer", "[optional][array][buffer]")
 {
     std::array arr = {1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
     std::optional<std::array<int32_t, 10>> opt_arr{arr};

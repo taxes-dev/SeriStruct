@@ -31,7 +31,7 @@ TEST_CASE("Generated record with primitives", "[generated]")
     REQUIRE(record.size() == G1_EXPECTED_BUFFER_SIZE);
 }
 
-TEST_CASE("Generated record write to output stream", "[generated]")
+TEST_CASE("Generated record write to output stream", "[generated][stream]")
 {
     GenRecordOne record{5, -1, 'a', true, 99999.99999, -1.5f};
 
@@ -75,7 +75,7 @@ TEST_CASE("Generated record write to output stream", "[generated]")
     }
 }
 
-TEST_CASE("Generated record read from input stream", "[generated]")
+TEST_CASE("Generated record read from input stream", "[generated][stream]")
 {
     std::stringstream s;
     unsigned char RECORD_BYTES[] = {

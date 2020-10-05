@@ -23,3 +23,10 @@ OptionalRecord:
 OptionalArrayRecord:
     bool_field bool
     opt_array_field optional<i32[10]>
+
+"Used by tests_string.cpp"
+CStringRecord:
+    char_field char
+    cstr_field_1 cstr[30]
+    cstr_field_2 cstr[50]
+    int_field i32
