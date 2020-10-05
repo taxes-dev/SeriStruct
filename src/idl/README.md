@@ -45,6 +45,8 @@ Each line must start with at least one whitespace character (spaces or tabs). In
 | u64 | uint64_t | 8 |
 | uchar | unsigned char | 1 |
 
+Additionally, a type can have a subscript (example: `i32[3]`). This indicates a fixed array and is represented via `std::array`. A type can also be optional (example: `optional<char>`), which is represented as `std::optional`.
+
 Here's an example of a complete record:
 
 ```
@@ -60,6 +62,10 @@ TestRecord:
     a_single_character char
     "Is the record a test?"
     is_test bool
+    "An array of 3 integers"
+    an_array i32[3]
+    "An optional character"
+    maybe_char optional<char>
 ```
 
 This would result in the following class:
@@ -94,6 +100,14 @@ public:
      * Is the record a test?
      */
     inline bool is_test() const { /*...*/ }
+    /**
+     * An array of 3 integers
+     */
+    inline std::array<int32_t, 3> an_array() const { /*...*/ }
+    /**
+     * An optional character
+     */
+    inline std::optional<char> maybe_char() const { /*...*/ }
 
 private:
     /* ... */

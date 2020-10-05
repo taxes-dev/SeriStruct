@@ -12,7 +12,7 @@ type_map = {
     "f64": ["double", 8],
     "i8": ["int8_t", 1],
     "i16": ["int16_t", 2],
-    "i32": ["int32_t", 4],
+    "i32": ["int32_t", 4], 
     "i64": ["int64_t", 8],
     "u8": ["uint8_t", 1],
     "u16": ["uint16_t", 2],
@@ -31,6 +31,8 @@ IDENT_REGEX = re.compile("^[A-Za-z_\u00a8\u00aa\u00ad\u00af\u00b2-\u00b5\u00b7-\
     "\u202a-\u202e\u203f-\u2040\u2054\u2060-\u218f\u2460-\u24ff\u2776-\u2793\u2c00-\u2dff\u2e80-\u2fff"
     "\u3004-\u3007\u3021-\u302f\u3031-\ud7ff\uf900-\ufd3d\ufd40-\ufdcf\ufdf0-\ufe44\ufe47-\ufffd]*$")
 
+FIELD_REGEX = re.compile(r"^(?P<opt_open>optional\<)?(?P<id>[^\[\>]+)(\[(?P<len>\d+)\])?(?P<opt_close>\>)?$")
+
 class Record:
     def __init__(self):
         self.struct_name = ""
@@ -43,18 +45,26 @@ class RecordField:
         self.comments = []
         self.field_type = ""
         self.field_width = 0
+        self.total_width = 0
         self.array_size = 0
+        self.is_optional = False
 
     def cpp_type(self, ctor=False):
+        output = "";
+        if (self.is_optional or self.array_size) and ctor:
+            output += "const "
+        if self.is_optional:
+            output += "std::optional<"
         if self.array_size:
-            return f"{'const ' if ctor else ''}std::array<{self.field_type}, {self.array_size}>{' &' if ctor else ''}"
-        return self.field_type
+            output += f"std::array<{self.field_type}, {self.array_size}>"
+        else:
+            output += self.field_type
+        if self.is_optional:
+            output += ">"
+        if (self.is_optional or self.array_size) and ctor:
+            output += " &"
+        return output
     
-    def total_width(self):
-        if self.array_size:
-            return self.field_width * self.array_size
-        return self.field_width
-
 def help():
     print("Generates SeriStruct records from IDL\n")
     print("ssgen.py -i <inputfile> -o <outputdir> [--guard] [-n|--namespace <namespace>] [--ext <extension>]\n")
@@ -78,22 +88,27 @@ def parse_field(field):
     fields = field.split()
     if len(fields) != 2:
         return None
-    array_matches = re.match(r"^([^\[]+)\[(\d+)\]$", fields[1])
-    if array_matches:
-        groups = array_matches.groups()
-        if groups[0] in type_map:
+    field_matches = FIELD_REGEX.match(fields[1])
+    if field_matches:
+        groups = field_matches.groupdict()
+        if groups["id"] in type_map:
             record_field = RecordField()
             record_field.field_name = fields[0]
-            record_field.field_type = type_map[groups[0]][0]
-            record_field.field_width = type_map[groups[0]][1]
-            record_field.array_size = int(groups[1])
+            record_field.field_type = type_map[groups["id"]][0]
+            record_field.field_width = type_map[groups["id"]][1]
+            record_field.total_width = record_field.field_width
+            if groups["opt_open"] and groups["opt_close"]:
+                record_field.is_optional = True
+                # account for optional's internal alignment
+                record_field.total_width = record_field.field_width * 2
+            if groups["len"]:
+                record_field.array_size = int(groups["len"])
+                record_field.total_width = record_field.field_width * record_field.array_size
+                if record_field.is_optional:
+                    # account for optional's internal alignment
+                    record_field.total_width += record_field.field_width
+
             return record_field
-    elif fields[1] in type_map:
-        record_field = RecordField()
-        record_field.field_name = fields[0]
-        record_field.field_type = type_map[fields[1]][0]
-        record_field.field_width = type_map[fields[1]][1]
-        return record_field
     return None
 
 
@@ -252,10 +267,7 @@ public:
                     for comment in field.comments:
                         fd.write(f"     * {comment}\n")
                     fd.write("     */\n")
-                fd.write(f"    inline {field.cpp_type()} &{field.field_name}() const {{ return buffer_at<{field.field_type}")
-                if field.array_size:
-                    fd.write(f", {field.array_size}")
-                fd.write(f">(offset_{field.field_name}); }}\n")
+                fd.write(f"    inline {field.cpp_type()} &{field.field_name}() const {{ return buffer_at<{field.cpp_type()}>(offset_{field.field_name}); }}\n")
             
             fd.write("\nprivate:\n")
             # Calculate offsets and write private fields
@@ -266,13 +278,13 @@ public:
                 if previous_field is None:
                     fd.write("0")
                 else:
-                    padding = (field.field_width - (current_offset % field.field_width)) % field.field_width
+                    padding = (field.total_width - (current_offset % field.field_width)) % field.field_width
                     if padding:
                         current_offset += padding
                         fd.write(f"{padding} /* padding */ + ")
                     fd.write(f"offset_{previous_field.field_name} + sizeof({previous_field.cpp_type()})")
                 fd.write(";\n")
-                current_offset += field.total_width()
+                current_offset += field.total_width
                 previous_field = field
             fd.write(f"    static constexpr size_t buffer_size = offset_{previous_field.field_name} + sizeof({previous_field.cpp_type()});\n")
             

@@ -13,3 +13,13 @@ ArrayRecord:
     int_field i32
     second_array char[5]
     third_array f32[2]
+
+"Used by tests_arr_opt.cpp"
+OptionalRecord:
+    first_opt optional<char>
+    second_opt optional<u32>
+
+"Used by tests_arr_opt.cpp"
+OptionalArrayRecord:
+    bool_field bool
+    opt_array_field optional<i32[10]>

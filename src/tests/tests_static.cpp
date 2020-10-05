@@ -290,3 +290,16 @@ TEST_CASE("Copy assignment operator", "[static]")
     REQUIRE(record2.f() == -1111_a);
     REQUIRE(record2.g() == '(');
 }
+
+TEST_CASE("Width of float/double", "[static]")
+{
+    if (sizeof(float) != 4)
+    {
+        WARN("float is not 32-bit on this platform");
+    }
+    if (sizeof(double) != 8)
+    {
+        WARN("double is not 64-bit on this platform");
+    }
+    SUCCEED();
+}
