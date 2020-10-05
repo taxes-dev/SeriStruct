@@ -6,6 +6,7 @@
 #include <exception>
 #include <iostream>
 #include <optional>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -195,6 +196,15 @@ namespace SeriStruct
             *(reinterpret_cast<T *>(buffer + offset)) = value;
         }
 
+        /**
+         * @brief Assigns an array of values to a particular offset in the buffer. Note that \p value must be
+         * a std::array of integral or floating point.
+         * 
+         * @tparam T is the type of values in the array
+         * @tparam N is the size of the array
+         * @param offset is the offset into the buffer
+         * @param value is the value, which overwrites any bytes at \p offset
+         */
         template <typename T, size_t N, typename = typename std::enable_if<std::is_integral<T>::value || std::is_floating_point<T>::value>::type>
         inline void assign_buffer(const size_t &offset, const std::array<T, N> &value)
         {
@@ -203,6 +213,14 @@ namespace SeriStruct
             *(reinterpret_cast<std::array<T, N> *>(buffer + offset)) = value;
         }
 
+        /**
+         * @brief Assign an optional value to a particular offset in the buffer. \p value can be an integral,
+         * floating point, or a std::array of such.
+         * 
+         * @tparam T is the type of value in the optional
+         * @param offset is the offset into the buffer
+         * @param value is the value, which overwrite any bytes at \p offset
+         */
         template <typename T>
         inline void assign_buffer(const size_t &offset, const std::optional<T> &value)
         {
@@ -211,6 +229,13 @@ namespace SeriStruct
             *(reinterpret_cast<std::optional<T> *>(buffer + offset)) = value;
         }
 
+        /**
+         * @brief Assign a C string to a particular offset in the buffer. \p value must be NUL-terminated.
+         * 
+         * @param offset is the offset into the buffer
+         * @param value is the string, which overwrites any bytes at \p offset. May be nullptr.
+         * @param maxlen is the maximum length allowed for the field. Excess bytes in \p value will be truncated.
+         */
         inline void assign_buffer(const size_t &offset, const char *value, const size_t &maxlen)
         {
             assert(("Buffer was not allocated", buffer));
@@ -264,7 +289,19 @@ namespace SeriStruct
         }
 
         /**
-         * @brief Allocates the underlying buffer.
+         * @brief Gets a string view at a particular offset in the buffer.
+         * 
+         * @param offset is the offset into the buffer
+         * @return std::string_view is the view of the string at \p offset
+         */
+        inline std::string_view buffer_at_str(const size_t &offset) const
+        {
+            return std::basic_string_view{buffer_at_cstr(offset)};
+        }
+
+        /**
+         * @brief Allocates the underlying buffer. Implementations must call this
+         * at least once before attempting to assign to or read from the buffer.
          * 
          * @param alloc_size is the size to allocate in bytes
          */

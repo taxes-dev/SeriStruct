@@ -20,6 +20,7 @@ type_map = {
     "u64": ["uint64_t", 8],
     "uchar": ["unsigned char", 1],
     "cstr": ["char *", 1],
+    "str": ["std::string", 1],
 }
 
 # reference: https://en.cppreference.com/w/cpp/language/identifiers
@@ -50,11 +51,14 @@ class RecordField:
         self.array_size = 0
         self.is_optional = False
         self.is_cstring = False
+        self.is_string = False
 
     def cpp_type(self, ctor=False):
         output = ""
         if self.is_cstring:
-            return "const char *"
+            return f"const {self.field_type}"
+        if self.is_string:
+            return f"const {self.field_type}{' &' if ctor else ''}"
 
         if (self.is_optional or self.array_size) and ctor:
             output += "const "
@@ -105,23 +109,29 @@ def parse_field(field):
             if groups["id"] == "cstr":
                 # Special case
                 record_field.is_cstring = True
+            elif groups["id"] == "str":
+                record_field.is_string = True
             record_field.field_width = type_map[groups["id"]][1]
             record_field.total_width = record_field.field_width
+
             if groups["opt_open"] and groups["opt_close"]:
-                if record_field.is_cstring:
+                if record_field.is_cstring or record_field.is_string:
                     return None
                 record_field.is_optional = True
                 # account for optional's internal alignment
                 record_field.total_width = record_field.field_width * 2
+
             if groups["len"]:
                 record_field.array_size = int(groups["len"])
                 record_field.total_width = record_field.field_width * record_field.array_size
                 if record_field.is_optional:
                     # account for optional's internal alignment
                     record_field.total_width += record_field.field_width
-                elif record_field.is_cstring:
+                elif record_field.is_cstring or record_field.is_string:
                     # for NUL terminator and nullptr flag
                     record_field.total_width += 2
+                    # pointer alignment
+                    record_field.field_width = 4
 
             return record_field
     return None
@@ -261,7 +271,9 @@ public:
             fd.write("        alloc(buffer_size);\n")
             for field in idl.fields:
                 fd.write(f"        assign_buffer(offset_{field.field_name}, {field.field_name}")
-                if field.is_cstring:
+                if field.is_string:
+                    fd.write(".c_str()")
+                if field.is_cstring or field.is_string:
                     fd.write(f", {field.array_size}")
                 fd.write(");\n")
             fd.write("    }\n")
@@ -285,10 +297,12 @@ public:
                     for comment in field.comments:
                         fd.write(f"     * {comment}\n")
                     fd.write("     */\n")
-                fd.write(f"    inline {field.cpp_type()} {'&' if not field.is_cstring else ''}{field.field_name}() const ")
-                fd.write(f"{{ return buffer_at")
+                fd.write(f"    inline {field.cpp_type()}{'_view' if field.is_string else ''} {'&' if not field.is_cstring and not field.is_string else ''}{field.field_name}")
+                fd.write(f"() const {{ return buffer_at")
                 if field.is_cstring:
                     fd.write("_cstr")
+                elif field.is_string:
+                    fd.write("_str")
                 else:
                     fd.write(f"<{field.cpp_type()}>")
                 fd.write(f"(offset_{field.field_name}); }}\n")
@@ -307,8 +321,8 @@ public:
                         current_offset += padding
                         fd.write(f"{padding} /* padding */ + ")
                     fd.write(f"offset_{previous_field.field_name} + ")
-                    if previous_field.is_cstring:
-                        fd.write(f"/* max length*/ {previous_field.total_width}")
+                    if previous_field.is_cstring or previous_field.is_string:
+                        fd.write(f"{previous_field.total_width} /* max length, null flag, NUL term */")
                     else:
                         fd.write(f"sizeof({previous_field.cpp_type()})")
                 fd.write(";\n")

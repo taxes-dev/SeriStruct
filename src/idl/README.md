@@ -49,7 +49,7 @@ Each line must start with at least one whitespace character (spaces or tabs). In
 
 Additionally, a type can have a subscript (example: `i32[3]`). This indicates a fixed array and is represented via `std::array`. A type can also be optional (example: `optional<char>`), which is represented as `std::optional`.
 
-Note that `cstr` and `str` are not compatible with `optional`, and they must supply a maximum length using a subscript similar to an array. `cstr` requires 2 more bytes than the maximum length to account for the NUL terminator and a flag for whether the string is present or not (`nullptr`).
+Note that `cstr` and `str` are not compatible with `optional`, and they must supply a maximum length using a subscript similar to an array. `cstr` requires 2 more bytes than the maximum length to account for the NUL terminator and a flag for whether the string is present or not (`nullptr`). C++ strings are stored the same as a C string and returned from the record as a `std::string_view` to avoid copying.
 
 Here's an example of a complete record:
 
@@ -117,7 +117,7 @@ public:
     /**
      * This is a string with a maximum length of 50 characters
      */
-    inline std::string & a_string() const { /*...*/ }
+    inline std::string_view a_string() const { /*...*/ }
 
 private:
     /* ... */

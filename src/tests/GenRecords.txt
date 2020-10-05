@@ -30,3 +30,10 @@ CStringRecord:
     cstr_field_1 cstr[30]
     cstr_field_2 cstr[50]
     int_field i32
+
+"Used by tests_string.cpp"
+StringRecord:
+    bool_field bool
+    str_field_1 str[30]
+    str_field_2 str[1024]
+    float_field f32
