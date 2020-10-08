@@ -142,7 +142,7 @@ namespace SeriStruct
         /**
          * @brief Destroy the Record object
          */
-        ~Record()
+        virtual ~Record()
         {
             if (buffer)
             {

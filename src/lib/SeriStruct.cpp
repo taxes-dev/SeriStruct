@@ -1,4 +1,3 @@
-#include <cstring>
 #include "SeriStruct.hpp"
 
 namespace SeriStruct

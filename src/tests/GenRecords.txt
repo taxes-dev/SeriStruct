@@ -7,6 +7,22 @@ GenRecordOne:
     dbl_field f64
     float_field f32
 
+"Used by tests_gen.cpp"
+GenRecordTwo:
+    uint_field u16
+    int_field i8
+    char_field char
+    bool_field bool
+
+"Used by tests_gen.cpp - compatible with GenRecordTwo"
+GenRecordThree:
+    uint_field u16
+    int_field i8
+    char_field char
+    bool_field bool
+    uint_field_2 u32
+    uint_field_3 u32
+
 "Used by tests_arr_opt.cpp"
 ArrayRecord:
     first_array i32[3]

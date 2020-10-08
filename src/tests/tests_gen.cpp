@@ -7,6 +7,8 @@
 #include "SeriStruct.hpp"
 #include "catch.hpp"
 #include "GenRecordOne.gen.hpp"
+#include "GenRecordTwo.gen.hpp"
+#include "GenRecordThree.gen.hpp"
 #include <iterator>
 #include <sstream>
 
@@ -144,4 +146,74 @@ TEST_CASE("Generated copy assignment operator", "[generated]")
     REQUIRE(record2.bool_field());
     REQUIRE(record2.dbl_field() == 99999.99999_a);
     REQUIRE(record2.float_field() == -1.5_a);
+}
+
+TEST_CASE("Stream forward compatible records", "[generated][stream]")
+{
+    std::stringstream s, s2;
+
+    // GenRecordThree represents a theoretical record that is forward-compatible
+    // with GenRecordTwo (i.e. only adds new fields)
+    GenRecordThree record{1, -1, 'b', true, 0xdead, 0xbeef};
+
+    record.write(s);
+    s.sync();
+    auto record_len = s.tellp();
+    REQUIRE(record_len > 0);
+    s.seekg(0);
+
+    GenRecordTwo record2{s, static_cast<size_t>(record_len)};
+    REQUIRE(record.size() == record2.size());
+    REQUIRE(record.uint_field() == record2.uint_field());
+    REQUIRE(record.int_field() == record2.int_field());
+    REQUIRE(record.char_field() == record2.char_field());
+    REQUIRE(record.bool_field() == record2.bool_field());
+
+    record2.write(s2);
+    s2.sync();
+    auto record_len_2 = s2.tellp();
+    REQUIRE(record_len == record_len_2);
+    s2.seekg(0);
+
+    // The instantiation of GenRecordTwo from a GenRecordThree should preserve the
+    // data in the extra fields, even though they're inaccessible
+    GenRecordThree record3{s2, static_cast<size_t>(record_len_2)};
+    REQUIRE(record.size() == record3.size());
+    REQUIRE(record.uint_field() == record3.uint_field());
+    REQUIRE(record.int_field() == record3.int_field());
+    REQUIRE(record.char_field() == record3.char_field());
+    REQUIRE(record.bool_field() == record3.bool_field());
+    REQUIRE(record.uint_field_2() == record3.uint_field_2());
+    REQUIRE(record.uint_field_3() == record3.uint_field_3());
+}
+
+TEST_CASE("Buffer copy forward compatible records", "[generated][buffer]")
+{
+    // GenRecordThree represents a theoretical record that is forward-compatible
+    // with GenRecordTwo (i.e. only adds new fields)
+    GenRecordThree record{1, -1, 'b', true, 0xdead, 0xbeef};
+
+    unsigned char buffer[record.size()];
+    record.copy_to(buffer);
+
+    GenRecordTwo record2{buffer, record.size()};
+    REQUIRE(record.size() == record2.size());
+    REQUIRE(record.uint_field() == record2.uint_field());
+    REQUIRE(record.int_field() == record2.int_field());
+    REQUIRE(record.char_field() == record2.char_field());
+    REQUIRE(record.bool_field() == record2.bool_field());
+
+    unsigned char buffer2[record2.size()];
+    record2.copy_to(buffer2);
+
+    // The instantiation of GenRecordTwo from a GenRecordThree should preserve the
+    // data in the extra fields, even though they're inaccessible
+    GenRecordThree record3{buffer2, record2.size()};
+    REQUIRE(record.size() == record3.size());
+    REQUIRE(record.uint_field() == record3.uint_field());
+    REQUIRE(record.int_field() == record3.int_field());
+    REQUIRE(record.char_field() == record3.char_field());
+    REQUIRE(record.bool_field() == record3.bool_field());
+    REQUIRE(record.uint_field_2() == record3.uint_field_2());
+    REQUIRE(record.uint_field_3() == record3.uint_field_3());
 }
