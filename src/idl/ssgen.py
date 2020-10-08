@@ -129,9 +129,9 @@ def parse_field(field):
                     record_field.total_width += record_field.field_width
                 elif record_field.is_cstring or record_field.is_string:
                     # for NUL terminator and nullptr flag
-                    record_field.total_width += 2
+                    record_field.total_width += 9
                     # pointer alignment
-                    record_field.field_width = 4
+                    record_field.field_width = 8
 
             return record_field
     return None
