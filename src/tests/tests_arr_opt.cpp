@@ -67,7 +67,7 @@ TEST_CASE("Array record copy to/from a buffer", "[array][buffer]")
     std::array third_array{-1.0f, 1.0f};
     ArrayRecord record{first_array, 9999, second_array, third_array};
 
-    unsigned char buffer[record.size()];
+    auto buffer = new unsigned char[record.size()];
     record.copy_to(buffer);
 
     ArrayRecord record2{buffer, record.size()};
@@ -75,13 +75,15 @@ TEST_CASE("Array record copy to/from a buffer", "[array][buffer]")
     REQUIRE(record.int_field() == record2.int_field());
     REQUIRE(record.second_array() == record2.second_array());
     REQUIRE(record.third_array() == record2.third_array());
+
+    delete[] buffer;
 }
 
 
 TEST_CASE("Record with optional", "[optional]")
 {
     std::optional<char> not_present{};
-    std::optional<uint> present{4};
+    std::optional<uint32_t> present{4};
     OptionalRecord record{not_present, present};
     REQUIRE_FALSE(record.first_opt());
     REQUIRE(record.second_opt());
@@ -92,7 +94,7 @@ TEST_CASE("Optional record read/write to output stream", "[optional][stream]")
 {
     std::stringstream s;
     std::optional<char> present{'p'};
-    std::optional<uint> not_present{};
+    std::optional<uint32_t> not_present{};
     OptionalRecord record{present, not_present};
 
     record.write(s);
@@ -110,10 +112,10 @@ TEST_CASE("Optional record read/write to output stream", "[optional][stream]")
 TEST_CASE("Optional record copy to/from a buffer", "[optional][buffer]")
 {
     std::optional<char> present1{'c'};
-    std::optional<uint> present2{999};
+    std::optional<uint32_t> present2{999};
     OptionalRecord record{present1, present2};
 
-    unsigned char buffer[record.size()];
+    auto buffer = new unsigned char[record.size()];
     record.copy_to(buffer);
 
     OptionalRecord record2{buffer, record.size()};
@@ -121,6 +123,8 @@ TEST_CASE("Optional record copy to/from a buffer", "[optional][buffer]")
     REQUIRE(record2.first_opt().value() == 'c');
     REQUIRE(record2.second_opt());
     REQUIRE(record2.second_opt().value() == 999);
+
+    delete[] buffer;
 }
 
 TEST_CASE("Record with optional array", "[optional][array]")
@@ -160,11 +164,13 @@ TEST_CASE("Optional array record copy to/from a buffer", "[optional][array][buff
     std::optional<std::array<int32_t, 10>> opt_arr{arr};
     OptionalArrayRecord record{true, opt_arr};
 
-    unsigned char buffer[record.size()];
+    auto buffer = new unsigned char[record.size()];
     record.copy_to(buffer);
 
     OptionalArrayRecord record2{buffer, record.size()};
     REQUIRE(record2.bool_field());
     REQUIRE(record2.opt_array_field());
     REQUIRE(record2.opt_array_field().value() == arr);
+
+    delete[] buffer;
 }

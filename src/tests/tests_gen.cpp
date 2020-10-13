@@ -148,6 +148,21 @@ TEST_CASE("Generated copy assignment operator", "[generated]")
     REQUIRE(record2.float_field() == -1.5_a);
 }
 
+TEST_CASE("Generated move assignment operator", "[generated]")
+{
+    GenRecordOne record{ 5, -1, 'a', true, 99999.99999, -1.5f };
+    GenRecordOne record2{ 1997, -1883, '-', false, -999.99f, 1.0f };
+
+    record2 = std::move(record);
+
+    REQUIRE(record2.uint_field() == 5);
+    REQUIRE(record2.int_field() == -1);
+    REQUIRE(record2.char_field() == 'a');
+    REQUIRE(record2.bool_field());
+    REQUIRE(record2.dbl_field() == 99999.99999_a);
+    REQUIRE(record2.float_field() == -1.5_a);
+}
+
 TEST_CASE("Stream forward compatible records", "[generated][stream]")
 {
     std::stringstream s, s2;
@@ -193,7 +208,7 @@ TEST_CASE("Buffer copy forward compatible records", "[generated][buffer]")
     // with GenRecordTwo (i.e. only adds new fields)
     GenRecordThree record{1, -1, 'b', true, 0xdead, 0xbeef};
 
-    unsigned char buffer[record.size()];
+    auto buffer = new unsigned char[record.size()];
     record.copy_to(buffer);
 
     GenRecordTwo record2{buffer, record.size()};
@@ -203,7 +218,7 @@ TEST_CASE("Buffer copy forward compatible records", "[generated][buffer]")
     REQUIRE(record.char_field() == record2.char_field());
     REQUIRE(record.bool_field() == record2.bool_field());
 
-    unsigned char buffer2[record2.size()];
+    auto buffer2 = new unsigned char[record2.size()];
     record2.copy_to(buffer2);
 
     // The instantiation of GenRecordTwo from a GenRecordThree should preserve the
@@ -216,4 +231,6 @@ TEST_CASE("Buffer copy forward compatible records", "[generated][buffer]")
     REQUIRE(record.bool_field() == record3.bool_field());
     REQUIRE(record.uint_field_2() == record3.uint_field_2());
     REQUIRE(record.uint_field_3() == record3.uint_field_3());
+
+    delete[] buffer, buffer2;
 }

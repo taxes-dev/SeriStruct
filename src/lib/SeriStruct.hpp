@@ -130,7 +130,7 @@ namespace SeriStruct
          * 
          * @param other 
          */
-        Record(Record &&other) : Record{}
+        Record(Record &&other) noexcept : Record{}
         {
             if (&other != this)
             {
@@ -140,9 +140,24 @@ namespace SeriStruct
         }
 
         /**
+         * @brief Move assignment operator
+         *
+         * @param other
+         * @return Record&
+         */
+        Record& operator=(Record&& other) noexcept {
+            if (&other != this)
+            {
+                std::swap(alloc_size, other.alloc_size);
+                std::swap(buffer, other.buffer);
+            }
+            return *this;
+        }
+
+        /**
          * @brief Destroy the Record object
          */
-        virtual ~Record()
+        virtual ~Record() noexcept
         {
             if (buffer)
             {
@@ -178,7 +193,7 @@ namespace SeriStruct
          * @brief Construct a new Record object
          * 
          */
-        Record() : alloc_size{0}, buffer{nullptr} {}
+        Record() noexcept : alloc_size{0}, buffer{nullptr} {}
 
         /**
          * @brief Assigns a value to a particular offset in the buffer. Note that \p value must be an

@@ -54,7 +54,7 @@ TEST_CASE("C string record copy to/from a buffer", "[cstring][buffer]")
 {
     CStringRecord record{'*', nullptr, "What is man? A miserable little pile of secrets", -999};
 
-    unsigned char buffer[record.size()];
+    auto buffer = new unsigned char[record.size()];
     record.copy_to(buffer);
 
     CStringRecord record2{buffer, record.size()};
@@ -103,7 +103,7 @@ TEST_CASE("String record copy to/from a buffer", "[string][buffer]")
 {
     StringRecord record{true, "All your base are belong to us", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 1024.1f};
 
-    unsigned char buffer[record.size()];
+    auto buffer = new unsigned char[record.size()];
     record.copy_to(buffer);
 
     StringRecord record2{buffer, record.size()};
