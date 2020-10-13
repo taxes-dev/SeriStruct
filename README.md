@@ -1,6 +1,14 @@
 # SeriStruct
 Lightweight C++ struct serializer inspired by a couple of CppCon 2020 talks, specifically Bjarne Stroustrup's "The Beauty and Power of Primitive C++" and Phil Nash's "Test Driven C++". Specifically I wanted to try my hand at writing something similar to Stroustrup's "Flat" struct transport with accompanying unit tests as part of a coding "kata" (as Nash called it).
 
+Features:
+* Automated generation of record structs (see [IDL README](src/idl/README.md)).
+* Support for basic data types, strings, `std::array`, and `std::optional`
+* Data is only copied on assignment into or copying out of the record. Only a single allocation is made at construction.
+* Optional mutability.
+* Copying to/from byte buffers.
+* Writing to/reading from streams.
+
 ## Requirements
 * CMake 3.16 or later
 * Modern C++ compiler (C++17)

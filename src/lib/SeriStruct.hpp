@@ -45,9 +45,10 @@ namespace SeriStruct
     };
 
     /**
-     * @brief An immutable set of data that can be serialized/deserialized into raw bytes. Classes
+     * @brief A set of data that can be serialized/deserialized into raw bytes. Classes
      * that derive from Record should insert data in the constructor using Record::assign_buffer() and
      * implement getters that read from the internal buffer using Record::buffer_at().
+     * Optionally setters can be implemented with the same calls to Record::assign_buffer().
      * 
      */
     class Record
