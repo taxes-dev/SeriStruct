@@ -5,22 +5,23 @@ import getopt
 from pathlib import Path
 import re
 
+# "idl name": ["cpp assign type", "cpp return type", field width (array), field width (align)]
 type_map = {
-    "bool": ["bool", 1],
-    "char": ["char", 1],
-    "f32": ["float", 4],
-    "f64": ["double", 8],
-    "i8": ["int8_t", 1],
-    "i16": ["int16_t", 2],
-    "i32": ["int32_t", 4],
-    "i64": ["int64_t", 8],
-    "u8": ["uint8_t", 1],
-    "u16": ["uint16_t", 2],
-    "u32": ["uint32_t", 4],
-    "u64": ["uint64_t", 8],
-    "uchar": ["unsigned char", 1],
-    "cstr": ["char *", 1],
-    "str": ["std::string", 1],
+    "bool": ["bool", "bool", 1, 1],
+    "char": ["char", "char", 1, 1],
+    "f32": ["float", "float", 4, 4],
+    "f64": ["double", "double", 8, 8],
+    "i8": ["int8_t", "int8_t", 1, 1],
+    "i16": ["int16_t", "int16_t", 2, 2],
+    "i32": ["int32_t", "int32_t", 4, 4],
+    "i64": ["int64_t", "int64_t", 8, 8],
+    "u8": ["uint8_t", "uint8_t", 1, 1],
+    "u16": ["uint16_t", "uint16_t", 2, 2],
+    "u32": ["uint32_t", "uint32_t", 4, 4],
+    "u64": ["uint64_t", "uint64_t", 8, 8],
+    "uchar": ["unsigned char", "unsigned char", 1, 1],
+    "cstr": ["const char *", "const char *", 1, 8],
+    "str": ["const std::string &", "std::string_view", 1, 8],
 }
 
 # reference: https://en.cppreference.com/w/cpp/language/identifiers
@@ -49,6 +50,7 @@ class RecordField:
         self.field_name = ""
         self.comments = []
         self.field_type = ""
+        self.field_type_return = ""
         self.field_width = 0
         self.total_width = 0
         self.array_size = 0
@@ -57,14 +59,15 @@ class RecordField:
         self.is_string = False
         self.is_mutable = False
 
-    def cpp_type(self, ctor=False):
+    def cpp_type(self, assign=False):
         output = ""
-        if self.is_cstring:
-            return f"const {self.field_type}"
-        if self.is_string:
-            return f"const {self.field_type}{' &' if ctor else ''}"
+        if self.is_cstring or self.is_string:
+            if assign:
+                return self.field_type
+            else:
+                return self.field_type_return
 
-        if (self.is_optional or self.array_size) and ctor:
+        if (self.is_optional or self.array_size) and assign:
             output += "const "
         if self.is_optional:
             output += "std::optional<"
@@ -72,11 +75,11 @@ class RecordField:
         if self.array_size:
             output += f"std::array<{self.field_type}, {self.array_size}>"
         else:
-            output += self.field_type
+            output += self.field_type if assign else self.field_type_return
 
         if self.is_optional:
             output += ">"
-        if (self.is_optional or self.array_size) and ctor:
+        if (self.is_optional or self.array_size) and assign:
             output += " &"
         return output
     
@@ -87,12 +90,13 @@ class RecordField:
 def help():
     print("Generates SeriStruct records from IDL\n")
     print(
-        "ssgen.py -i <inputfile> -o <outputdir> [--guard] [-n|--namespace <namespace>] [--ext <extension>]\n")
+        "ssgen.py -i <inputfile> -o <outputdir> [--guard] [-n|--namespace <namespace>] [--ext <extension>] [-m|--mut]\n")
     print("    inputfile    Input IDL file")
     print("    ouputdir     Path to put generated .hpp files")
     print("    --guard      Use DEFINE guard rather than pragma once")
     print("    namespace    A namespace for qualifying the generated records")
     print("    extension    The extension for generated header files (defaults to .gen.hpp)")
+    print("    --mut        Make all fields mutable regardless of input")
 
 
 def error(msg):
@@ -117,12 +121,14 @@ def parse_field(field):
             record_field = RecordField()
             record_field.field_name = fields[0]
             record_field.field_type = type_map[groups["id"]][0]
+            record_field.field_type_return = type_map[groups["id"]][1]
+
             if groups["id"] == "cstr":
                 # Special case
                 record_field.is_cstring = True
             elif groups["id"] == "str":
                 record_field.is_string = True
-            record_field.field_width = type_map[groups["id"]][1]
+            record_field.field_width = type_map[groups["id"]][2]
             record_field.total_width = record_field.field_width
 
             if len(fields) == 3 and fields[2] == "mut":
@@ -145,10 +151,28 @@ def parse_field(field):
                     # for NUL terminator and nullptr flag
                     record_field.total_width += 9
                     # pointer alignment (alignof(char *))
-                    record_field.field_width = 8
+                    record_field.field_width = type_map[groups["id"]][3]
 
             return record_field
     return None
+
+
+def cpp_assign_buffer(fd, field, spaces=0):
+    fd.write("".rjust(spaces))
+    fd.write(
+        f"assign_buffer(offset_{field.field_name}, {field.field_name}")
+    if field.is_string:
+        fd.write(".c_str()")
+    if field.is_cstring or field.is_string:
+        fd.write(f", {field.array_size}")
+    fd.write(");")
+
+
+def cpp_prev_field_padding(fd, field):
+    if field.is_cstring or field.is_string:
+        fd.write(f"{field.total_width} /* max length, null flag, NUL term */")
+    else:
+        fd.write(f"sizeof({field.cpp_type()})")
 
 
 # Parse arguments
@@ -292,17 +316,12 @@ public:
             for (idx, field) in enumerate(idl.fields):
                 if idx > 0:
                     fd.write(", ")
-                fd.write(f"{field.cpp_type(ctor=True)} {field.field_name}")
+                fd.write(f"{field.cpp_type(assign=True)} {field.field_name}")
             fd.write(")\n        : Record{}\n    {\n")
             fd.write("        alloc(buffer_size);\n")
             for field in idl.fields:
-                fd.write(
-                    f"        assign_buffer(offset_{field.field_name}, {field.field_name}")
-                if field.is_string:
-                    fd.write(".c_str()")
-                if field.is_cstring or field.is_string:
-                    fd.write(f", {field.array_size}")
-                fd.write(");\n")
+                cpp_assign_buffer(fd, field, spaces=8)
+                fd.write("\n")
             fd.write("    }\n")
 
             # Write remaining boilerplate constructors
@@ -325,8 +344,10 @@ public:
                         fd.write(f"     * {comment}\n")
                     fd.write("     */\n")
                 fd.write(
-                    f"    inline {field.cpp_type()}{'_view' if field.is_string else ''} {'&' if not field.is_cstring and not field.is_string else ''}{field.field_name}")
-                fd.write(f"() const {{ return buffer_at")
+                    f"    inline {field.cpp_type()} ")
+                if not field.is_string and not field.is_cstring:
+                    fd.write("& ")
+                fd.write(f"{field.field_name}() const {{ return buffer_at")
                 if field.is_cstring:
                     fd.write("_cstr")
                 elif field.is_string:
@@ -342,13 +363,9 @@ public:
                         for comment in field.comments:
                             fd.write(f"     * {comment}\n")
                         fd.write("     */\n")
-                    fd.write(f"    inline void {field.field_name}({field.cpp_type(ctor=True)} {field.field_name})")
-                    fd.write(f" {{ assign_buffer(offset_{field.field_name}, {field.field_name}")
-                    if field.is_string:
-                        fd.write(".c_str()")
-                    if field.is_cstring or field.is_string:
-                        fd.write(f", {field.array_size}")
-                    fd.write("); }\n")
+                    fd.write(f"    inline void {field.field_name}({field.cpp_type(assign=True)} {field.field_name}) {{ ")
+                    cpp_assign_buffer(fd, field)
+                    fd.write(" }\n")
 
             fd.write("\nprivate:\n")
             # Calculate offsets and write private fields
@@ -366,20 +383,14 @@ public:
                         current_offset += padding
                         fd.write(f"{padding} /* padding */ + ")
                     fd.write(f"offset_{previous_field.field_name} + ")
-                    if previous_field.is_cstring or previous_field.is_string:
-                        fd.write(
-                            f"{previous_field.total_width} /* max length, null flag, NUL term */")
-                    else:
-                        fd.write(f"sizeof({previous_field.cpp_type()})")
+                    cpp_prev_field_padding(fd, previous_field)
                 fd.write(";\n")
                 current_offset += field.total_width
                 previous_field = field
             fd.write(
                 f"    static constexpr size_t buffer_size = offset_{previous_field.field_name} + ")
-            if previous_field.is_cstring or previous_field.is_string:
-                fd.write(f"{previous_field.total_width}; /* max length, null flag, NUL term */\n")
-            else:
-                fd.write(f"sizeof({previous_field.cpp_type()});\n")
+            cpp_prev_field_padding(fd, previous_field)
+            fd.write(";\n")
 
             # Write close of class
             fd.write("};\n")
