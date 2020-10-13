@@ -239,7 +239,7 @@ namespace SeriStruct
         inline void assign_buffer(const size_t &offset, const char *value, const size_t &maxlen)
         {
             assert(("Buffer was not allocated", buffer));
-            assert(("Attempt to write past end of buffer", offset + maxlen + 9 <= alloc_size));
+            assert(("Attempt to write past end of buffer", offset + maxlen + alignof(char *) + 1 <= alloc_size));
             if (value == nullptr)
             {
                 *(reinterpret_cast<char *>(buffer + offset)) = false;
@@ -247,7 +247,7 @@ namespace SeriStruct
             else
             {
                 *(reinterpret_cast<char *>(buffer + offset)) = true;
-                strncpy(reinterpret_cast<char *>(buffer + offset + sizeof(bool)), value, std::min(maxlen, strlen(value)));
+                strncpy(reinterpret_cast<char *>(buffer + offset + alignof(char *)), value, std::min(maxlen, strlen(value)));
             }
         }
 
@@ -276,11 +276,11 @@ namespace SeriStruct
         inline const char *buffer_at_cstr(const size_t &offset) const
         {
             assert(("Buffer was not allocated", buffer));
-            assert(("Attempt to read past end of buffer", offset + 8 + sizeof(char *) <= alloc_size));
+            assert(("Attempt to read past end of buffer", offset + alignof(char *) + sizeof(char *) <= alloc_size));
             bool is_present = buffer_at<bool>(offset);
             if (is_present)
             {
-                return reinterpret_cast<const char *>(buffer + offset + sizeof(bool));
+                return reinterpret_cast<const char *>(buffer + offset + alignof(char *));
             }
             else
             {

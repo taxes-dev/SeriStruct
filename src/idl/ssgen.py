@@ -12,7 +12,7 @@ type_map = {
     "f64": ["double", 8],
     "i8": ["int8_t", 1],
     "i16": ["int16_t", 2],
-    "i32": ["int32_t", 4], 
+    "i32": ["int32_t", 4],
     "i64": ["int64_t", 8],
     "u8": ["uint8_t", 1],
     "u16": ["uint16_t", 2],
@@ -25,21 +25,24 @@ type_map = {
 
 # reference: https://en.cppreference.com/w/cpp/language/identifiers
 IDENT_REGEX = re.compile("^[A-Za-z_\u00a8\u00aa\u00ad\u00af\u00b2-\u00b5\u00b7-\u00ba"
-    "\u00bc-\u00be\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u167f\u1681-\u180d\u180f-\u1dbf\u1e00-\u1fff\u200b-\u200d"
-    "\u202a-\u202e\u203f-\u2040\u2054\u2060-\u20cf\u2100-\u218f\u2460-\u24ff\u2776-\u2793\u2c00-\u2dff\u2e80-\u2fff"
-    "\u3004-\u3007\u3021-\u302f\u3031-\ud7ff\uf900-\ufd3d\ufd40-\ufdcf\ufdf0-\ufe1f\ufe30-\ufe44\ufe47-\ufffd]"
-    "[A-Za-z0-9_\u00a8\u00aa\u00ad\u00af\u00b2-\u00b5\u00b7-\u00ba"
-    "\u00bc-\u00be\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u167f\u1681-\u180d\u180f-\u1fff\u200b-\u200d"
-    "\u202a-\u202e\u203f-\u2040\u2054\u2060-\u218f\u2460-\u24ff\u2776-\u2793\u2c00-\u2dff\u2e80-\u2fff"
-    "\u3004-\u3007\u3021-\u302f\u3031-\ud7ff\uf900-\ufd3d\ufd40-\ufdcf\ufdf0-\ufe44\ufe47-\ufffd]*$")
+                         "\u00bc-\u00be\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u167f\u1681-\u180d\u180f-\u1dbf\u1e00-\u1fff\u200b-\u200d"
+                         "\u202a-\u202e\u203f-\u2040\u2054\u2060-\u20cf\u2100-\u218f\u2460-\u24ff\u2776-\u2793\u2c00-\u2dff\u2e80-\u2fff"
+                         "\u3004-\u3007\u3021-\u302f\u3031-\ud7ff\uf900-\ufd3d\ufd40-\ufdcf\ufdf0-\ufe1f\ufe30-\ufe44\ufe47-\ufffd]"
+                         "[A-Za-z0-9_\u00a8\u00aa\u00ad\u00af\u00b2-\u00b5\u00b7-\u00ba"
+                         "\u00bc-\u00be\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u167f\u1681-\u180d\u180f-\u1fff\u200b-\u200d"
+                         "\u202a-\u202e\u203f-\u2040\u2054\u2060-\u218f\u2460-\u24ff\u2776-\u2793\u2c00-\u2dff\u2e80-\u2fff"
+                         "\u3004-\u3007\u3021-\u302f\u3031-\ud7ff\uf900-\ufd3d\ufd40-\ufdcf\ufdf0-\ufe44\ufe47-\ufffd]*$")
 
-FIELD_REGEX = re.compile(r"^(?P<opt_open>optional\<)?(?P<id>[^\[\>]+)(\[(?P<len>\d+)\])?(?P<opt_close>\>)?$")
+FIELD_REGEX = re.compile(
+    r"^(?P<opt_open>optional\<)?(?P<id>[^\[\>]+)(\[(?P<len>\d+)\])?(?P<opt_close>\>)?$")
+
 
 class Record:
     def __init__(self):
         self.struct_name = ""
         self.comments = []
         self.fields = []
+
 
 class RecordField:
     def __init__(self):
@@ -52,6 +55,7 @@ class RecordField:
         self.is_optional = False
         self.is_cstring = False
         self.is_string = False
+        self.is_mutable = False
 
     def cpp_type(self, ctor=False):
         output = ""
@@ -76,9 +80,14 @@ class RecordField:
             output += " &"
         return output
     
+    def mutable(self):
+        return self.is_mutable or all_mutable
+
+
 def help():
     print("Generates SeriStruct records from IDL\n")
-    print("ssgen.py -i <inputfile> -o <outputdir> [--guard] [-n|--namespace <namespace>] [--ext <extension>]\n")
+    print(
+        "ssgen.py -i <inputfile> -o <outputdir> [--guard] [-n|--namespace <namespace>] [--ext <extension>]\n")
     print("    inputfile    Input IDL file")
     print("    ouputdir     Path to put generated .hpp files")
     print("    --guard      Use DEFINE guard rather than pragma once")
@@ -90,14 +99,16 @@ def error(msg):
     print(msg, file=sys.stderr)
     sys.exit(2)
 
+
 def is_valid_cpp_identifier(ident):
     if ident:
         return IDENT_REGEX.match(ident) is not None
     return False
 
+
 def parse_field(field):
     fields = field.split()
-    if len(fields) != 2:
+    if len(fields) < 2 or len(fields) > 3:
         return None
     field_matches = FIELD_REGEX.match(fields[1])
     if field_matches:
@@ -113,6 +124,9 @@ def parse_field(field):
                 record_field.is_string = True
             record_field.field_width = type_map[groups["id"]][1]
             record_field.total_width = record_field.field_width
+
+            if len(fields) == 3 and fields[2] == "mut":
+                record_field.is_mutable = True
 
             if groups["opt_open"] and groups["opt_close"]:
                 if record_field.is_cstring or record_field.is_string:
@@ -130,7 +144,7 @@ def parse_field(field):
                 elif record_field.is_cstring or record_field.is_string:
                     # for NUL terminator and nullptr flag
                     record_field.total_width += 9
-                    # pointer alignment
+                    # pointer alignment (alignof(char *))
                     record_field.field_width = 8
 
             return record_field
@@ -143,9 +157,11 @@ outputdir = ""
 guard = False
 namespace = ""
 hpp_ext = ".gen.hpp"
+all_mutable = False
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "h?i:o:n:", ["help", "guard", "namespace=", "ext="])
+    opts, args = getopt.getopt(sys.argv[1:], "h?mi:o:n:", [
+                               "help", "mut", "guard", "namespace=", "ext="])
 except getopt.GetoptError:
     help()
     sys.exit(2)
@@ -153,6 +169,8 @@ for opt, arg in opts:
     if opt in ("-h", "-?", "--help"):
         help()
         sys.exit(0)
+    elif opt in ("-m", "--mut"):
+        all_mutable = True
     elif opt == "-i":
         inputfile = arg
     elif opt == "-o":
@@ -164,7 +182,8 @@ for opt, arg in opts:
     elif opt == "--ext":
         hpp_ext = arg
         if hpp_ext[0] != ".":
-            print("Warning: extension supplied does not start with period (.)", file=sys.stderr)
+            print(
+                "Warning: extension supplied does not start with period (.)", file=sys.stderr)
 
 if inputfile == "" or outputdir == "":
     error("Both inputfile and outputdir are required")
@@ -202,7 +221,8 @@ try:
                     record = Record()
                     record.struct_name = line[:-1]
                     if not is_valid_cpp_identifier(record.struct_name):
-                        error(f"Invalid identifier {record.struct_name} in {inputfile} at {line_no}")
+                        error(
+                            f"Invalid identifier {record.struct_name} in {inputfile} at {line_no}")
                     record.comments = comments.copy()
                     comments.clear()
                     for line in fd:
@@ -210,7 +230,8 @@ try:
                         if line.isspace():
                             break
                         if not line[0].isspace():
-                            error(f"Expected whitespace in {inputfile} at line {line_no}")
+                            error(
+                                f"Expected whitespace in {inputfile} at line {line_no}")
                         line = line.strip()
                         if line[0] == '"' and line[-1] == '"':
                             comments.append(line[1:-1])
@@ -220,14 +241,17 @@ try:
                                 error(
                                     f"Syntax error in {inputfile} at line {line_no}")
                             if not is_valid_cpp_identifier(field.field_name):
-                                error(f"Invalid identifier {record.struct_name}.{field.field_name} in {inputfile} at {line_no}")
+                                error(
+                                    f"Invalid identifier {record.struct_name}.{field.field_name} in {inputfile} at {line_no}")
                             field.comments = comments.copy()
                             comments.clear()
                             record.fields.append(field)
                     if len(comments):
-                        error(f"Orphaned comments in {inputfile} at line {line_no}")
+                        error(
+                            f"Orphaned comments in {inputfile} at line {line_no}")
                     if len(record.fields) == 0:
-                        error(f"Record {record.struct_name} in {inputfile} at line {line_no} has no fields")
+                        error(
+                            f"Record {record.struct_name} in {inputfile} at line {line_no} has no fields")
                     parsed_idl.append(record)
                 else:
                     error(f"Syntax error in {inputfile} at line {line_no}")
@@ -243,8 +267,10 @@ for idl in parsed_idl:
         with open(hpp, mode="w") as fd:
             # Write opener
             if guard:
-                fd.write(f"#ifndef SERISTRUCT_RECORD_{idl.struct_name.upper()}_HPP\n")
-                fd.write(f"#define SERISTRUCT_RECORD_{idl.struct_name.upper()}_HPP\n\n")
+                fd.write(
+                    f"#ifndef SERISTRUCT_RECORD_{idl.struct_name.upper()}_HPP\n")
+                fd.write(
+                    f"#define SERISTRUCT_RECORD_{idl.struct_name.upper()}_HPP\n\n")
             else:
                 fd.write("#pragma once\n")
             fd.write("#include <SeriStruct.hpp>\n\n")
@@ -270,7 +296,8 @@ public:
             fd.write(")\n        : Record{}\n    {\n")
             fd.write("        alloc(buffer_size);\n")
             for field in idl.fields:
-                fd.write(f"        assign_buffer(offset_{field.field_name}, {field.field_name}")
+                fd.write(
+                    f"        assign_buffer(offset_{field.field_name}, {field.field_name}")
                 if field.is_string:
                     fd.write(".c_str()")
                 if field.is_cstring or field.is_string:
@@ -289,15 +316,16 @@ public:
         Record::operator=(other);
         return *this;
     }}\n\n""")
-            
-            # Write field getters
+
+            # Write field getters and setters
             for field in idl.fields:
                 if len(field.comments):
                     fd.write("    /**\n")
                     for comment in field.comments:
                         fd.write(f"     * {comment}\n")
                     fd.write("     */\n")
-                fd.write(f"    inline {field.cpp_type()}{'_view' if field.is_string else ''} {'&' if not field.is_cstring and not field.is_string else ''}{field.field_name}")
+                fd.write(
+                    f"    inline {field.cpp_type()}{'_view' if field.is_string else ''} {'&' if not field.is_cstring and not field.is_string else ''}{field.field_name}")
                 fd.write(f"() const {{ return buffer_at")
                 if field.is_cstring:
                     fd.write("_cstr")
@@ -306,30 +334,53 @@ public:
                 else:
                     fd.write(f"<{field.cpp_type()}>")
                 fd.write(f"(offset_{field.field_name}); }}\n")
-            
+
+                if field.mutable():
+                    if len(field.comments):
+                        fd.write("    /**\n")
+                        fd.write("     * (Setter)")
+                        for comment in field.comments:
+                            fd.write(f"     * {comment}\n")
+                        fd.write("     */\n")
+                    fd.write(f"    inline void {field.field_name}({field.cpp_type(ctor=True)} {field.field_name})")
+                    fd.write(f" {{ assign_buffer(offset_{field.field_name}, {field.field_name}")
+                    if field.is_string:
+                        fd.write(".c_str()")
+                    if field.is_cstring or field.is_string:
+                        fd.write(f", {field.array_size}")
+                    fd.write("); }\n")
+
             fd.write("\nprivate:\n")
             # Calculate offsets and write private fields
             current_offset = 0
             previous_field = None
             for field in idl.fields:
-                fd.write(f"    static constexpr size_t offset_{field.field_name} = ")
+                fd.write(
+                    f"    static constexpr size_t offset_{field.field_name} = ")
                 if previous_field is None:
                     fd.write("0")
                 else:
-                    padding = (field.total_width - (current_offset % field.field_width)) % field.field_width
+                    padding = (field.total_width - (current_offset %
+                                                    field.field_width)) % field.field_width
                     if padding:
                         current_offset += padding
                         fd.write(f"{padding} /* padding */ + ")
                     fd.write(f"offset_{previous_field.field_name} + ")
                     if previous_field.is_cstring or previous_field.is_string:
-                        fd.write(f"{previous_field.total_width} /* max length, null flag, NUL term */")
+                        fd.write(
+                            f"{previous_field.total_width} /* max length, null flag, NUL term */")
                     else:
                         fd.write(f"sizeof({previous_field.cpp_type()})")
                 fd.write(";\n")
                 current_offset += field.total_width
                 previous_field = field
-            fd.write(f"    static constexpr size_t buffer_size = offset_{previous_field.field_name} + sizeof({previous_field.cpp_type()});\n")
-            
+            fd.write(
+                f"    static constexpr size_t buffer_size = offset_{previous_field.field_name} + ")
+            if previous_field.is_cstring or previous_field.is_string:
+                fd.write(f"{previous_field.total_width}; /* max length, null flag, NUL term */\n")
+            else:
+                fd.write(f"sizeof({previous_field.cpp_type()});\n")
+
             # Write close of class
             fd.write("};\n")
             if namespace:

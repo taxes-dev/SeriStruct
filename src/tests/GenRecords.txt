@@ -53,3 +53,12 @@ StringRecord:
     str_field_1 str[30]
     str_field_2 str[1024]
     float_field f32
+
+"Used by tests_mut.cpp"
+MutableRecord:
+    int_field i8 mut
+    float_field f32 mut
+    char_field uchar mut
+    bool_field bool mut
+    cstr_field cstr[90] mut
+    str_field str[60] mut

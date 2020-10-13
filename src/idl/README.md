@@ -27,7 +27,14 @@ After the name of the struct, one or more fields should be defined in the follow
     <field name> <data type>
 ```
 
+Or, for a mutable field:
+```
+    <field name> <data type> mut
+```
+
 Each line must start with at least one whitespace character (spaces or tabs). Individual fields must not have blank lines between them. After that, three columns of whitespace delimited data are specified. First the field's name (a valid C++ identifier as with the class name), then the data type (see the table of valid types below), and finally an optional description (to be used for a field comment).
+
+Adding the keyword `mut` to the end of the field definition tells the parser to create a setter alongside a getter for that field.
 
 | IDL data type | Corresponding C++ data type | Alignment (bytes) |
 | --- | --- | --- |
@@ -70,8 +77,8 @@ TestRecord:
     an_array i32[3]
     "An optional character"
     maybe_char optional<char>
-    "This is a string with a maximum length of 50 characters"
-    a_string str[50]
+    "This is a mutabl estring with a maximum length of 50 characters"
+    a_string str[50] mut
 ```
 
 This would result in the following class:
@@ -118,6 +125,11 @@ public:
      * This is a string with a maximum length of 50 characters
      */
     inline std::string_view a_string() const { /*...*/ }
+    /**
+     * (Setter)
+     * This is a string with a maximum length of 50 characters
+     */
+    inline void a_string(const std::string & a_string) { /*...*/ }
 
 private:
     /* ... */
@@ -129,4 +141,4 @@ The class would automatically include all of the boiler plate code needed for in
 ## Desgin Considerations
 To maintain serialization compatbility (forward), avoid making data type changes or field order changes to in-use fields. Putting fields at the end of the record will not impact existing data or implementations.
 
-Part of the underlying functionality of `Record` will byte-align fields in the internal buffer according to the table shown above. Therefore, it is recommended that you put single-byte fields like `char` and `bool` next to each other to avoid excessive padding. 64-bit values are always 8-byte aligned to allow cross compatibility on 64-bit and 32-bit compilation.
+Part of the underlying functionality of `Record` will byte-align fields in the internal buffer according to the table shown above. Therefore, it is recommended that you put single-byte fields like `char` and `bool` next to each other to avoid excessive padding. 64-bit values and pointers are always 8-byte aligned to allow cross compatibility on 64-bit and 32-bit compilation.
